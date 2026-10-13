@@ -9,7 +9,7 @@ from pathlib import Path
 
 import typer
 
-from vf.analyze import analyze_all, load_words
+from vf.analyze import analyze_all, list_videos, load_words
 from vf.brief import load_brief, read_phrase_list
 from vf.config import load_config
 from vf.learn import stats_markdown, summarize_reviews
@@ -18,6 +18,8 @@ from vf.paths import BRAND_DIR, BRIEF_TEMPLATE, CAPTION_STYLE, FORBIDDEN_PATH, P
 from vf.probe import MediaInfo
 from vf.qa import ClaimViolation, check_output, contact_sheet
 from vf.render import render_variant
+from vf.style import reference_frames, shot_stats
+from vf.transcribe import transcribe
 
 app = typer.Typer(help="Video factory cho Smilee: phân tích nguồn, dựng biến thể, QA.", no_args_is_help=True)
 
@@ -169,6 +171,33 @@ def learn(config: Path = ConfigOpt) -> None:
         raise typer.Exit(code=1)
     typer.echo("Lô: " + ", ".join(p.parent.name for p in csvs))
     typer.echo(stats_markdown(summarize_reviews(csvs)))
+
+
+@app.command()
+def style(
+    config: Path = ConfigOpt,
+    work_dir: Path = WorkOpt,
+    every_s: float = typer.Option(1.0, "--every", help="Lấy 1 khung hình mỗi bao nhiêu giây"),
+    no_transcribe: bool = typer.Option(False, "--no-transcribe"),
+    threshold: float = typer.Option(0.3, "--threshold", help="Ngưỡng dò cắt cảnh (thấp hơn = nhạy hơn)"),
+) -> None:
+    """Đo nhịp cắt, lấy khung hình, phiên âm mọi video trong 'video tham khảo' → work/style/<tên>/."""
+    cfg = load_config(config)
+    refs = list_videos(cfg.references_dir) if cfg.references_dir.is_dir() else []
+    if not refs:
+        raise typer.BadParameter(f"Không có video trong {cfg.references_dir}")
+    for ref in refs:
+        d = work_dir / "style" / ref.stem
+        d.mkdir(parents=True, exist_ok=True)
+        stats = shot_stats(ref, threshold)
+        (d / "stats.json").write_text(json.dumps(asdict(stats), ensure_ascii=False, indent=1), encoding="utf-8")
+        frames = reference_frames(ref, d / "frames", every_s)
+        words = [] if no_transcribe else transcribe(ref)
+        (d / "transcript.json").write_text(
+            json.dumps([asdict(w) for w in words], ensure_ascii=False, indent=1), encoding="utf-8")
+        typer.echo(f"{ref.name}: {stats.duration:.1f} s, {stats.n_cuts} cắt cảnh, "
+                   f"TB {stats.avg_shot_s:.2f} s/cảnh, {len(frames)} khung hình")
+    typer.echo(f"Xong: {work_dir / 'style'}")
 
 
 if __name__ == "__main__":

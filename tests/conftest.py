@@ -13,12 +13,12 @@ def _ffmpeg(*args: str) -> None:
 
 @pytest.fixture(scope="session")
 def sample_video(tmp_path_factory) -> Path:
-    """5 s, 720x1280, 30 fps. Hình: đỏ → xanh lá ở 1.7 s → xanh dương ở 3.4 s.
+    """5 s, 720x1280, 30 fps. Hình: đỏ → trắng ở 1.7 s → xanh dương ở 3.4 s (độ sáng chênh lớn để dò cắt cảnh).
     Tiếng: 1 s im lặng, 2 s tone 440 Hz, 1 s im lặng, 1 s tone 440 Hz."""
     out = tmp_path_factory.mktemp("media") / "sample_a.mp4"
     _ffmpeg(
         "-f", "lavfi", "-i", "color=c=red:s=720x1280:r=30:d=1.7",
-        "-f", "lavfi", "-i", "color=c=green:s=720x1280:r=30:d=1.7",
+        "-f", "lavfi", "-i", "color=c=white:s=720x1280:r=30:d=1.7",
         "-f", "lavfi", "-i", "color=c=blue:s=720x1280:r=30:d=1.6",
         "-f", "lavfi", "-i", "anullsrc=r=48000:cl=stereo:d=1",
         "-f", "lavfi", "-i", "sine=f=440:r=48000:d=2",

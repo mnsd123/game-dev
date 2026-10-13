@@ -20,7 +20,7 @@ Nguồn chỉ có hình (b-roll) vẫn chạy được: transcript rỗng, biế
 Đọc hết, không đọc lướt:
 1. `jobs/<lô>/brief.yaml`
 2. `library/product.md`, đặc biệt mục 6 "Những điều KHÔNG được nói" và mọi dòng còn `[CẦN XÁC NHẬN]`
-3. `library/style-guide.md` (nhịp cắt, kiểu chữ, hiệu ứng). Nếu file còn ghi "chưa duyệt" thì báo người dùng rằng lô này dựng theo mặc định.
+3. `library/style-guide.md` (nhịp cắt, kiểu chữ, hiệu ứng). Nếu file chưa có dòng "ĐÃ DUYỆT" thì báo người dùng rằng lô này dựng theo mặc định.
 4. `library/hooks.md` và `library/learnings.md`: ưu tiên kiểu hook đang thắng, tránh điều đã bị chấm thấp
 5. `library/forbidden.txt` và `library/claims_pending.txt`
 6. `work/<tên nguồn>/transcript.json`, `keep.json`, `info.json` của MỌI nguồn
