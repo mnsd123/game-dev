@@ -29,6 +29,10 @@ vf new auto
 ```
 Lệnh tạo `jobs/lo-NN/brief.yaml`, `source_roles` điền sẵn các nguồn mới (mặc định `a_roll`).
 
+Yêu cầu người dùng gõ kèm lệnh (ví dụ `/smilee-video cắt xuống dưới 1 phút 30 giây`) là ràng buộc cứng, ghi vào brief trước khi hỏi:
+- Giới hạn thời lượng "dưới X giây" → `target_seconds` = X ÷ 1.1, làm tròn xuống (dưới 90 s → 80), vì pipeline cho phép ±10%. Ghi thêm X vào `must_keep`/ghi chú và kiểm tra mọi biến thể < X ở bước 5.
+- Yêu cầu khác (số bản, kiểu hook, nguồn nào dùng) → điền thẳng vào trường tương ứng, không hỏi lại.
+
 Hỏi người dùng MỘT lần, gộp vào một tin nhắn, mỗi mục kèm đề xuất mặc định để họ chỉ cần trả lời "ok":
 - mục tiêu (awareness / education / conversion), thời lượng, số biến thể (mặc định 3)
 - thông điệp một câu, CTA
@@ -52,6 +56,7 @@ vf analyze lo-NN
 ```
 vf render lo-NN
 ```
+- Có giới hạn thời lượng từ người dùng thì mọi biến thể phải ngắn hơn giới hạn đó; vượt thì cắt bớt đoạn trong edl và render lại.
 - Xem từng `*_sheet.png` và `qa.json`. Biến thể lỗi thì sửa edl rồi chạy `vf render lo-NN --only <id>`.
 - Bị `ClaimViolation` thì sửa chữ hoặc đoạn trong edl. Không sửa `forbidden.txt` hay `claims_pending.txt`.
 
