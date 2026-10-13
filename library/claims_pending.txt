@@ -1,11 +1,8 @@
-# Claim CHƯA có bằng chứng (library/product.md mục 2.1, 5, 7). Chặn render giống forbidden.txt.
-# Khi đã lưu bằng chứng (test, before/after thật, ảnh chụp màn hình có ngày) thì xoá dòng tương ứng.
+# Claim CHƯA có bằng chứng (library/product.md mục 5, 7). Chặn render giống forbidden.txt.
+# Khi đã lưu bằng chứng (ảnh chụp màn hình có ngày, xác nhận nhãn hàng) thì xoá dòng tương ứng.
 # Dòng bắt đầu bằng # là chú thích. Khi so khớp, "5 - 7", "5 đến 7", "năm đến bảy" đều coi như "5-7".
-5-7 ngày
-3-4 tone
-3-4 tông
-như sứ
-như răng sứ
+# 2026-10-13: người dùng quyết định KHÔNG chặn 3 cam kết kết quả (5–7 ngày, 3–4 tone, như sứ);
+# chúng được highlight tự động theo library/commitments.txt.
 4.8 sao
 4,8 sao
 4 chấm 8 sao

@@ -11,7 +11,7 @@ from pathlib import Path
 from vf.captions import remap_words, words_to_ass
 from vf.edl import Effect, TextOverlay, Variant, output_duration
 from vf.ffutil import run
-from vf.paths import BRAND_DIR, CAPTION_STYLE
+from vf.paths import BRAND_DIR, CAPTION_STYLE, LIBRARY
 from vf.probe import MediaInfo
 from vf.brief import FORBIDDEN_PATH, PENDING_PATH, read_phrase_list
 from vf.qa import ClaimViolation, check_claims, measure_lufs
@@ -26,6 +26,7 @@ DECLICK_S = 0.01
 FONT_EXTS = (".ttf", ".otf")
 DEFAULT_BRAND = BRAND_DIR
 DEFAULT_STYLE = CAPTION_STYLE
+DEFAULT_STYLE_GUIDE = LIBRARY / "style-guide.md"
 
 
 def _filter_path(p: Path) -> str:
@@ -144,7 +145,9 @@ def build_ffmpeg_cmd(
     gains: dict[str, float] | None = None,
     text_dir: Path | None = None,
     speech: set[str] | None = None,
+    overlay: Path | None = None,
 ) -> list[str]:
+    """`overlay`: video chữ động nền trong suốt (Remotion) chồng lên hình; khi có thì không vẽ drawtext."""
     pieces = v.pieces()
     if gains is None:
         gains = source_gains(sources, infos, {p.source for p in pieces}, speech)
@@ -169,16 +172,26 @@ def build_ffmpeg_cmd(
         )
     fc.append("".join(f"[v{i}][a{i}]" for i in range(n)) + f"concat=n={n}:v=1:a=1[vc][ac]")
 
+    total = output_duration(v)
+    extra = n
     vchain = _effect_filters(v.effects)
-    font = find_font(brand) if v.overlays else None
-    vchain += [_overlay_filter(o, k, font, text_dir) for k, o in enumerate(v.overlays)]
+    if overlay is not None:
+        # hiệu ứng (zoom, rung) chỉ áp vào hình quay; chữ động chồng lên sau nên không bị zoom theo
+        cmd += ["-i", str(overlay)]
+        fc.append("[vc]" + ",".join(vchain or ["null"]) + "[vfx]")
+        fc.append(f"[{extra}:v]setpts=PTS-STARTPTS,fps={FPS}[ovl]")
+        vchain = [f"[vfx][ovl]overlay=0:0:format=auto:eof_action=pass"]
+        extra += 1
+    else:
+        font = find_font(brand) if v.overlays else None
+        vchain += [_overlay_filter(o, k, font, text_dir) for k, o in enumerate(v.overlays)]
     if ass is not None and v.captions:
         vchain.append(f"subtitles=filename={_filter_path(ass)}:fontsdir={_filter_path(brand)}")
     vchain.append(f"fps={FPS},format=yuv420p")
-    fc.append("[vc]" + ",".join(vchain) + "[vout]")
-
-    total = output_duration(v)
-    extra = n
+    if overlay is not None:
+        fc.append(vchain[0] + "," + ",".join(vchain[1:]) + "[vout]")
+    else:
+        fc.append("[vc]" + ",".join(vchain) + "[vout]")
     mix = ["[ac]"]
     if v.music:
         cmd += ["-stream_loop", "-1", "-i", str(resolve_asset(v.music, brand))]
@@ -220,10 +233,16 @@ def render_variant(
     style_path: Path = DEFAULT_STYLE,
     work_dir: Path | None = None,
     forbidden: list[str] | None = None,
+    motion: bool | None = None,
 ) -> Path:
-    """Kiểm tra claim trên mọi overlay + phụ đề TRƯỚC khi render; vi phạm → ClaimViolation, không tạo file."""
+    """Kiểm tra claim trên mọi overlay + phụ đề TRƯỚC khi render; vi phạm → ClaimViolation, không tạo file.
+    Overlay = chữ trong edl + cam kết tự phát hiện trong lời nói (library/commitments.txt).
+    motion=None: dùng Remotion nếu đã cài, không thì vẽ chữ tĩnh bằng drawtext."""
+    from vf.motion import plan_overlays, remotion_available, render_overlay
+
     if forbidden is None:
         forbidden = read_phrase_list(FORBIDDEN_PATH) + read_phrase_list(PENDING_PATH)
+    v = v.model_copy(update={"overlays": plan_overlays(v, words_by_source or {})})
     words = remap_words(words_by_source or {}, v.pieces()) if v.captions else []
     texts = [o.text for o in v.overlays] + ([" ".join(w.text for w in words)] if words else [])
     hits = check_claims(texts, forbidden)
@@ -241,8 +260,12 @@ def render_variant(
     tmp_out = out.with_name(out.stem + ".partial" + out.suffix)
     spoken = {name for name, ws in (words_by_source or {}).items() if ws}
     speech = spoken or None  # chưa có transcript nào → không đoán, coi mọi nguồn là có lời nói
+    overlay_path = None
+    if v.overlays and (remotion_available() if motion is None else motion):
+        overlay_path = render_overlay(v, DEFAULT_STYLE_GUIDE, work / f"{v.id}_overlay.mov", brand=brand,
+                                      props_path=work / f"{v.id}_overlay.json")
     cmd = build_ffmpeg_cmd(sources, infos, v, ass_path, brand, tmp_out, text_dir=work / f"{v.id}_text",
-                           speech=speech)
+                           speech=speech, overlay=overlay_path)
     try:
         run(cmd)
     except Exception:

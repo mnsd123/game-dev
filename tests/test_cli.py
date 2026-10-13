@@ -98,3 +98,42 @@ def test_learn_prints_stats(tmp_path):
     assert r.exit_code == 0, r.output
     assert "| pain | 1 | 4.00 | 50% |" in r.output
     assert "lo-01" in r.output
+
+
+def _drive_with_sources(tmp_path, sample_video, names):
+    drive = tmp_path / "EDIT"
+    src = drive / "source gốc"
+    src.mkdir(parents=True)
+    for n in names:
+        shutil.copy(sample_video, src / n)
+    cfg = tmp_path / "vf.toml"
+    cfg.write_text(f'drive_root = "{drive.as_posix()}"\n', encoding="utf-8")
+    return cfg
+
+
+def test_status_lists_new_sources_and_next_lo(tmp_path, sample_video):
+    cfg = _drive_with_sources(tmp_path, sample_video, ["cu.mp4", "moi 1.mov"])
+    jobs = tmp_path / "jobs"
+    (jobs / "lo-01").mkdir(parents=True)
+    (jobs / "lo-01" / "edl.json").write_text(json.dumps({"job": "lo-01", "variants": [
+        {"id": "v1", "hook_type": "pain", "hook": {"source": "cu.mp4", "start": 0, "end": 1},
+         "segments": [], "rationale": "r"}]}), encoding="utf-8")
+    r = runner.invoke(app, ["status", "--config", str(cfg), "--jobs-dir", str(jobs),
+                            "--work-dir", str(tmp_path / "work")])
+    assert r.exit_code == 0, r.output
+    assert "moi 1.mov" in r.output and "MỚI" in r.output
+    assert "lo-02" in r.output
+
+
+def test_new_prefills_unused_sources(tmp_path, sample_video):
+    import yaml
+    cfg = _drive_with_sources(tmp_path, sample_video, ["cu.mp4", "moi.mov"])
+    jobs = tmp_path / "jobs"
+    (jobs / "lo-01").mkdir(parents=True)
+    (jobs / "lo-01" / "edl.json").write_text(json.dumps({"job": "lo-01", "variants": [
+        {"id": "v1", "hook_type": "pain", "hook": {"source": "cu.mp4", "start": 0, "end": 1},
+         "segments": [], "rationale": "r"}]}), encoding="utf-8")
+    r = runner.invoke(app, ["new", "auto", "--config", str(cfg), "--jobs-dir", str(jobs)])
+    assert r.exit_code == 0, r.output
+    brief = yaml.safe_load((jobs / "lo-02" / "brief.yaml").read_text(encoding="utf-8"))
+    assert brief["source_roles"] == {"moi.mov": "a_roll"}

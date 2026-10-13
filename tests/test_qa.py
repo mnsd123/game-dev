@@ -81,7 +81,8 @@ def test_render_blocked_by_overlay_claim(sample_video, tmp_path):
 
 def test_render_blocked_by_caption_claim(sample_video, tmp_path):
     srcs = {"a.mp4": sample_video}
-    v = Variant(id="cap", hook_type="x", hook={"source": "a.mp4", "start": 1.0, "end": 2.5}, segments=[], rationale="t")
+    v = Variant(id="cap", hook_type="x", hook={"source": "a.mp4", "start": 1.0, "end": 2.5}, segments=[],
+                captions=True, rationale="t")
     words = {"a.mp4": [Word("trắng", 1.1, 1.4), Word("như", 1.5, 1.7), Word("sứ", 1.8, 2.0)]}
     with pytest.raises(ClaimViolation, match="như sứ"):
         render_variant(srcs, {"a.mp4": probe(sample_video)}, v, tmp_path / "c.mp4",
@@ -92,12 +93,19 @@ PENDING = [l for l in (ROOT / "library/claims_pending.txt").read_text(encoding="
            if l and not l.startswith("#")]
 
 
-@pytest.mark.parametrize("text", [
-    "trắng sau 5 - 7 ngày", "trắng sau 5 – 7 ngày", "trắng sau năm đến bảy ngày", "bật 3 đến 4 tone",
-    "bật 3-4 tông", "răng trắng như sứ luôn",
-])
+@pytest.mark.parametrize("text", ["4 , 8 sao trên TikTok", "hơn trăm  nghìn lượt bán", "sinh hoạt bình thường"])
 def test_pending_claim_spoken_forms_caught(text):
     assert check_claims([text], PENDING + FORBIDDEN) != []
+
+
+def test_result_commitments_allowed_by_user_decision():
+    # 2026-10-13 người dùng quyết định highlight 3 cam kết kết quả → không còn bị chặn
+    for text in ["trắng sau năm đến bảy ngày", "bật 3-4 tone", "trắng như sứ"]:
+        assert check_claims([text], PENDING + FORBIDDEN) == []
+
+
+def test_range_normalization_still_works():
+    assert check_claims(["sau năm đến bảy ngày"], ["5-7 ngày"]) == ["5-7 ngày"]
 
 
 @pytest.mark.parametrize("text", ["100 % an toàn", "điều-trị", "Thần\u200bkỳ"])

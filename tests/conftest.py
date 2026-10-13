@@ -1,10 +1,16 @@
 """Fixture video tổng hợp bằng ffmpeg lavfi, dùng chung cho mọi test."""
 from __future__ import annotations
 
+import os
 import subprocess
 from pathlib import Path
 
 import pytest
+
+# Môi trường cloud có sẵn Chromium; trên máy người dùng Remotion tự tải trình duyệt nên không cần biến này.
+_HEADLESS = Path("/opt/pw-browsers/chromium_headless_shell-1194/chrome-linux/headless_shell")
+if _HEADLESS.exists():
+    os.environ.setdefault("VF_BROWSER_EXECUTABLE", str(_HEADLESS))
 
 
 def _ffmpeg(*args: str) -> None:

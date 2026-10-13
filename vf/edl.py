@@ -23,12 +23,17 @@ class Segment(BaseModel):
         return self.end - self.start
 
 
+Animation = Literal["pop", "word_by_word", "highlight", "slide", "none"]
+
+
 class TextOverlay(BaseModel):
     text: str
     start: float  # theo timeline output
     end: float
     position: Literal["top", "center", "bottom"] = "top"
-    style: str = "hook"
+    style: Literal["hook", "commit", "label", "cta", "plain"] = "hook"
+    animation: Animation = "pop"
+    emphasis: list[str] = []  # từ được tô vệt highlight; rỗng + animation=highlight → tô cả câu
 
 
 class Effect(BaseModel):
@@ -45,7 +50,7 @@ class Variant(BaseModel):
     segments: list[Segment]
     overlays: list[TextOverlay] = []
     effects: list[Effect] = []
-    captions: bool = True
+    captions: bool = False  # mặc định KHÔNG phụ đề toàn bộ lời; chỉ chữ động ở đoạn quan trọng
     music: str | None = None
     rationale: str
 
