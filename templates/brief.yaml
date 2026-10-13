@@ -1,0 +1,18 @@
+# Brief cho một lô. Chép thành jobs/<lô>/brief.yaml rồi điền.
+platform: tiktok            # tiktok | reels | shorts
+aspect: "9:16"              # 9:16 | 1:1 | 16:9
+target_seconds: 30          # tổng thời lượng mong muốn (±10%)
+variants: 3                 # số biến thể (1–20), mỗi bản một kiểu hook khác nhau
+goal: awareness             # awareness (nhận diện) | education (giáo dục) | conversion (chuyển đổi)
+message: "Trắng răng tại nhà, 15 phút mỗi lần, không cần hẹn lịch."   # thông điệp một câu
+cta: "Bấm giỏ hàng để xem bộ kit Smilee"
+audience: "Nữ Gen Z, đi làm bận rộn"
+source_roles:               # tên file trong "source gốc" → vai trò
+  "source gốc 1 quyenqui.mov": a_roll
+must_keep: []               # câu/ý bắt buộc giữ (trích lời nói)
+must_cut: []                # câu/ý bắt buộc bỏ
+hook_ideas:
+  - "Cười mà phải che miệng?"
+tone: "gần gũi, nói thật, không phóng đại"
+forbidden: []               # cụm cấm thêm riêng cho lô này (gộp với library/forbidden.txt)
+style: default
