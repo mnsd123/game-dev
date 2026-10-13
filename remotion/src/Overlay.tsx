@@ -66,7 +66,7 @@ const Item: React.FC<{ item: OverlayItem; colors: Colors }> = ({ item, colors })
   const isCard = item.style === "commit" || item.style === "label" || item.style === "cta";
   const bg = item.style === "commit" ? colors.card : colors.accent;
   const fg = isCard ? (item.style === "commit" ? colors.cardText : colors.accentText) : colors.text;
-  const fontSize = item.style === "commit" ? 96 : item.style === "hook" ? 88 : item.style === "plain" ? 64 : 60;
+  const fontSize = item.style === "commit" ? 84 : item.style === "hook" ? 88 : item.style === "plain" ? 64 : 60;
 
   const textStyle: React.CSSProperties = isCard
     ? { color: fg }
@@ -128,8 +128,9 @@ const Item: React.FC<{ item: OverlayItem; colors: Colors }> = ({ item, colors })
         style={{
           position: "absolute",
           top: TOP[item.position],
-          maxWidth: 940,
+          maxWidth: 1000,
           textAlign: "center",
+          textWrap: "balance",
           fontFamily: FONT_STACK,
           fontWeight: 900,
           fontSize,

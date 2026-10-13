@@ -93,7 +93,8 @@ PENDING = [l for l in (ROOT / "library/claims_pending.txt").read_text(encoding="
            if l and not l.startswith("#")]
 
 
-@pytest.mark.parametrize("text", ["4 , 8 sao trên TikTok", "hơn trăm  nghìn lượt bán", "sinh hoạt bình thường"])
+@pytest.mark.parametrize("text", ["4,8 sao trên TikTok", "đạt 4.8 sao", "4 chấm 8 sao", "bốn chấm tám sao",
+                                  "hơn trăm  nghìn lượt bán", "sinh hoạt bình thường"])
 def test_pending_claim_spoken_forms_caught(text):
     assert check_claims([text], PENDING + FORBIDDEN) != []
 

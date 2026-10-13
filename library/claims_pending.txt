@@ -1,11 +1,9 @@
 # Claim CHƯA có bằng chứng (library/product.md mục 5, 7). Chặn render giống forbidden.txt.
 # Khi đã lưu bằng chứng (ảnh chụp màn hình có ngày, xác nhận nhãn hàng) thì xoá dòng tương ứng.
-# Dòng bắt đầu bằng # là chú thích. Khi so khớp, "5 - 7", "5 đến 7", "năm đến bảy" đều coi như "5-7".
+# Dòng bắt đầu bằng # là chú thích. Khi so khớp, "5 - 7"/"năm đến bảy" coi như "5-7"; "4,8"/"bốn chấm tám" coi như "4.8".
 # 2026-10-13: người dùng quyết định KHÔNG chặn 3 cam kết kết quả (5–7 ngày, 3–4 tone, như sứ);
 # chúng được highlight tự động theo library/commitments.txt.
 4.8 sao
-4,8 sao
-4 chấm 8 sao
 trăm nghìn lượt bán
 trăm ngàn lượt bán
 sinh hoạt bình thường

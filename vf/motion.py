@@ -19,12 +19,14 @@ MAX_WINDOW_WORDS = 7
 LEAD_S = 0.1  # hiện chữ sớm hơn lời nói một chút
 MIN_SHOW_S = 1.8
 HOLD_AFTER_S = 1.0
+MIN_VISIBLE_S = 0.6
 
 
 @dataclass(frozen=True)
 class Commitment:
     phrase: str
     display: str
+    emphasis: str = ""
 
 
 def load_commitments(path: Path = COMMITMENTS_PATH) -> list[Commitment]:
@@ -35,8 +37,8 @@ def load_commitments(path: Path = COMMITMENTS_PATH) -> list[Commitment]:
         line = line.strip()
         if not line or line.startswith("#") or "|" not in line:
             continue
-        phrase, display = (x.strip() for x in line.split("|", 1))
-        out.append(Commitment(phrase, display))
+        parts = [x.strip() for x in line.split("|")]
+        out.append(Commitment(parts[0], parts[1], parts[2] if len(parts) > 2 else ""))
     return out
 
 
@@ -72,7 +74,8 @@ def find_commitments(words: list[Word], commitments: list[Commitment], total: fl
         end = min(total, max(words[j - 1].end + HOLD_AFTER_S, start + MIN_SHOW_S))
         if not any(o.text == c.display and o.start < end and start < o.end for o in found):
             found.append(TextOverlay(text=c.display, start=round(start, 3), end=round(end, 3),
-                                     position="center", style="commit", animation="highlight"))
+                                     position="center", style="commit", animation="highlight",
+                                     emphasis=[c.emphasis] if c.emphasis else []))
         i = j
     return found
 
@@ -87,7 +90,26 @@ def plan_overlays(v: Variant, words_by_source: dict[str, list[Word]]) -> list[Te
     for o in auto:
         if not any(p.text == o.text and p.start < o.end and o.start < p.end for p in planned):
             planned.append(o)
-    return sorted(planned, key=lambda o: o.start)
+    return _no_overlap(sorted(planned, key=lambda o: o.start))
+
+
+def _no_overlap(overlays: list[TextOverlay]) -> list[TextOverlay]:
+    """Hai chữ cùng vị trí không hiện chồng nhau: chữ trước kết thúc khi chữ sau bắt đầu."""
+    out: list[TextOverlay] = []
+    last_at: dict[str, int] = {}
+    for o in overlays:
+        k = last_at.get(o.position)
+        if k is not None and out[k].end > o.start:
+            prev = out[k]
+            if o.start - prev.start >= MIN_VISIBLE_S:
+                out[k] = prev.model_copy(update={"end": o.start})
+            else:  # chữ trước quá ngắn nếu cắt → lùi chữ sau
+                o = o.model_copy(update={"start": prev.end})
+                if o.end - o.start < MIN_VISIBLE_S:
+                    continue
+        last_at[o.position] = len(out)
+        out.append(o)
+    return out
 
 
 def remotion_available() -> bool:

@@ -33,6 +33,7 @@ def test_find_spoken_range_commitment():
     assert len(found) == 1
     o = found[0]
     assert o.text == "Trắng sau 5–7 ngày" and o.style == "commit" and o.animation == "highlight"
+    assert o.emphasis == ["5–7 ngày"]
     assert o.start == pytest.approx(0.9) and o.end >= 1.9 + 1.0
 
 
@@ -96,3 +97,14 @@ def test_render_variant_with_motion(sample_video, tmp_path):
     assert abs(info.duration - output_duration(v)) <= 0.15
     props = json.loads((tmp_path / "w" / "m_overlay.json").read_text(encoding="utf-8"))
     assert any(o["text"] == "Trắng như sứ" for o in props["overlays"])
+
+
+def test_overlays_same_position_do_not_overlap():
+    v = Variant(id="x", hook_type="pain", hook={"source": "a", "start": 0, "end": 2},
+                segments=[{"source": "a", "start": 2, "end": 9}], rationale="r")
+    words = {"a": [_w("năm", 5.0, 5.2), _w("đến", 5.2, 5.4), _w("bảy", 5.4, 5.6), _w("ngày", 5.6, 5.9),
+                   _w("trắng", 6.0, 6.3), _w("như", 6.3, 6.5), _w("sứ", 6.5, 6.9)]}
+    planned = [o for o in plan_overlays(v, words) if o.position == "center"]
+    assert [o.text for o in planned] == ["Trắng sau 5–7 ngày", "Trắng như sứ"]
+    for a, b in zip(planned, planned[1:]):
+        assert a.end <= b.start + 1e-6, (a, b)

@@ -36,6 +36,7 @@ _NUM_WORDS = {
     "bảy": 7, "bay": 7, "tám": 8, "tam": 8, "chín": 9, "chin": 9, "mười": 10, "muoi": 10,
 }
 _NUM = r"(\d+|" + "|".join(sorted(_NUM_WORDS, key=len, reverse=True)) + r")"
+_DECIMAL = re.compile(r"(?<!\w)" + _NUM + r"\s*(?:[.,]|chấm|phẩy|cham|phay)\s*" + _NUM + r"(?!\w)")
 _RANGE = re.compile(r"(?<!\w)" + _NUM + r"\s*(?:-|đến|tới|den|toi)\s*" + _NUM + r"(?!\w)")
 
 
@@ -45,11 +46,12 @@ def _num(token: str) -> str:
 
 def _norm(text: str) -> str:
     """Chuẩn hoá để so khớp: thường hoá, gộp khoảng trắng, '5 - 7'/'5 đến 7'/'năm đến bảy' → '5-7',
-    '100 %' → '100%', gạch nối giữa chữ ('điều-trị') → khoảng trắng, bỏ ký tự vô hình."""
+    '4,8'/'bốn chấm tám' → '4.8', '100 %' → '100%', gạch nối giữa chữ ('điều-trị') → khoảng trắng, bỏ ký tự vô hình."""
     text = unicodedata.normalize("NFC", text).casefold()
     text = _ZERO_WIDTH.sub(" ", text)
     text = re.sub(r"[‐-―−]", "-", text)
     text = re.sub(r"\s+", " ", text)
+    text = _DECIMAL.sub(lambda m: f"{_num(m.group(1))}.{_num(m.group(2))}", text)
     text = _RANGE.sub(lambda m: f"{_num(m.group(1))}-{_num(m.group(2))}", text)
     text = re.sub(r"(?<!\d)-|-(?!\d)", " ", text)
     text = re.sub(r"\s+%", "%", text)

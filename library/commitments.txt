@@ -1,8 +1,8 @@
 # Cam kết được highlight + hiệu ứng TỰ ĐỘNG khi người nói nói ra trong video (tìm trong transcript).
-# Mỗi dòng: cụm cần tìm | chữ hiển thị trên màn hình
+# Mỗi dòng: cụm cần tìm | chữ hiển thị trên màn hình | phần được tô vệt highlight (bỏ trống = cả câu)
 # So khớp không phân biệt hoa thường; "5 - 7", "5 đến 7", "năm đến bảy" đều coi như "5-7".
-5-7 ngày | Trắng sau 5–7 ngày
-3-4 tone | Bật 3–4 tone
-3-4 tông | Bật 3–4 tone
-như răng sứ | Trắng như sứ
-như sứ | Trắng như sứ
+5-7 ngày | Trắng sau 5–7 ngày | 5–7 ngày
+3-4 tone | Bật 3–4 tone | 3–4 tone
+3-4 tông | Bật 3–4 tone | 3–4 tone
+như răng sứ | Trắng như sứ | như sứ
+như sứ | Trắng như sứ | như sứ
