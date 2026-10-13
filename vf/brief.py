@@ -7,8 +7,7 @@ from typing import Literal
 import yaml
 from pydantic import BaseModel, Field
 
-FORBIDDEN_PATH = Path("library/forbidden.txt")
-PENDING_PATH = Path("library/claims_pending.txt")
+from vf.paths import FORBIDDEN_PATH, PENDING_PATH
 
 
 class Brief(BaseModel):

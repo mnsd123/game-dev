@@ -4,7 +4,6 @@ from __future__ import annotations
 import math
 import shutil
 import subprocess
-import sys
 import tempfile
 import textwrap
 from pathlib import Path
@@ -12,6 +11,7 @@ from pathlib import Path
 from vf.captions import remap_words, words_to_ass
 from vf.edl import Effect, TextOverlay, Variant, output_duration
 from vf.ffutil import run
+from vf.paths import BRAND_DIR, CAPTION_STYLE
 from vf.probe import MediaInfo
 from vf.brief import FORBIDDEN_PATH, PENDING_PATH, read_phrase_list
 from vf.qa import ClaimViolation, check_claims, measure_lufs
@@ -23,8 +23,8 @@ MUSIC_BELOW_VOICE_DB = 18.0
 JOIN_FADE_S = 0.04  # nửa của 0.08 s mỗi bên chỗ nối hai nguồn khác nhau
 DECLICK_S = 0.01
 FONT_EXTS = (".ttf", ".otf")
-DEFAULT_BRAND = Path("library/brand")
-DEFAULT_STYLE = Path("templates/caption_style.ass")
+DEFAULT_BRAND = BRAND_DIR
+DEFAULT_STYLE = CAPTION_STYLE
 
 
 def _filter_path(p: Path) -> str:
