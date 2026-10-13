@@ -59,7 +59,7 @@ def test_duplicates_removed(tmp_path):
 
 def test_pending_claims_merged(tmp_path):
     b = load_brief(_write_brief(tmp_path), FORBIDDEN, PENDING)
-    assert "3–4 tone" in b.forbidden
+    assert "3-4 tone" in b.forbidden
 
 
 def test_forbidden_txt_has_product_rules():

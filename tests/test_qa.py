@@ -86,3 +86,24 @@ def test_render_blocked_by_caption_claim(sample_video, tmp_path):
     with pytest.raises(ClaimViolation, match="như sứ"):
         render_variant(srcs, {"a.mp4": probe(sample_video)}, v, tmp_path / "c.mp4",
                        words_by_source=words, forbidden=["như sứ"])
+
+
+PENDING = [l for l in (ROOT / "library/claims_pending.txt").read_text(encoding="utf-8").splitlines()
+           if l and not l.startswith("#")]
+
+
+@pytest.mark.parametrize("text", [
+    "trắng sau 5 - 7 ngày", "trắng sau 5 – 7 ngày", "trắng sau năm đến bảy ngày", "bật 3 đến 4 tone",
+    "bật 3-4 tông", "răng trắng như sứ luôn",
+])
+def test_pending_claim_spoken_forms_caught(text):
+    assert check_claims([text], PENDING + FORBIDDEN) != []
+
+
+@pytest.mark.parametrize("text", ["100 % an toàn", "điều-trị", "Thần\u200bkỳ"])
+def test_forbidden_spacing_variants_caught(text):
+    assert check_claims([text], FORBIDDEN) != []
+
+
+def test_plain_numbers_not_flagged():
+    assert check_claims(["15 phút mỗi lần, 7 ngày dùng đều"], PENDING + FORBIDDEN) == []

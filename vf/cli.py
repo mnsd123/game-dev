@@ -9,7 +9,7 @@ from pathlib import Path
 
 import typer
 
-from vf.analyze import analyze_all, list_videos, load_words
+from vf.analyze import analyze_all, list_videos, load_words, source_work_dir
 from vf.brief import load_brief, read_phrase_list
 from vf.config import load_config
 from vf.learn import stats_markdown, summarize_reviews
@@ -55,7 +55,7 @@ def analyze(
     cfg = load_config(config)
     if not cfg.sources_dir.is_dir():
         raise typer.BadParameter(f"Không thấy thư mục nguồn: {cfg.sources_dir}")
-    kwargs = {"transcriber": (lambda p: [])} if no_transcribe else {}
+    kwargs = {"transcriber": None} if no_transcribe else {}
     infos = analyze_all(cfg.sources_dir, work_dir, **kwargs)
     (jobs_dir / lo).mkdir(parents=True, exist_ok=True)
     for name, info in infos.items():
@@ -67,7 +67,7 @@ def analyze(
 def _load_infos(sources_dir: Path, work_dir: Path) -> tuple[dict[str, Path], dict[str, MediaInfo]]:
     sources, infos = {}, {}
     for src in sorted(p for p in sources_dir.iterdir() if p.is_file()):
-        d = work_dir / src.stem
+        d = source_work_dir(work_dir, src.name)
         if (d / "info.json").exists() and (d / "normalized.mp4").exists():
             sources[src.name] = d / "normalized.mp4"
             infos[src.name] = MediaInfo(**json.loads((d / "info.json").read_text(encoding="utf-8")))

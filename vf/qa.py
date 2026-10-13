@@ -30,8 +30,29 @@ class ClaimViolation(Exception):
     """Chữ hiển thị chứa cụm cấm hoặc claim chưa có bằng chứng."""
 
 
+_ZERO_WIDTH = re.compile(r"[\u200b-\u200d\u2060\ufeff]")
+_NUM_WORDS = {
+    "một": 1, "mot": 1, "hai": 2, "ba": 3, "bốn": 4, "bon": 4, "năm": 5, "nam": 5, "sáu": 6, "sau": 6,
+    "bảy": 7, "bay": 7, "tám": 8, "tam": 8, "chín": 9, "chin": 9, "mười": 10, "muoi": 10,
+}
+_NUM = r"(\d+|" + "|".join(sorted(_NUM_WORDS, key=len, reverse=True)) + r")"
+_RANGE = re.compile(r"(?<!\w)" + _NUM + r"\s*(?:-|đến|tới|den|toi)\s*" + _NUM + r"(?!\w)")
+
+
+def _num(token: str) -> str:
+    return str(_NUM_WORDS.get(token, token))
+
+
 def _norm(text: str) -> str:
-    text = unicodedata.normalize("NFC", text).casefold().replace("–", "-").replace("—", "-")
+    """Chuẩn hoá để so khớp: thường hoá, gộp khoảng trắng, '5 - 7'/'5 đến 7'/'năm đến bảy' → '5-7',
+    '100 %' → '100%', gạch nối giữa chữ ('điều-trị') → khoảng trắng, bỏ ký tự vô hình."""
+    text = unicodedata.normalize("NFC", text).casefold()
+    text = _ZERO_WIDTH.sub(" ", text)
+    text = re.sub(r"[‐-―−]", "-", text)
+    text = re.sub(r"\s+", " ", text)
+    text = _RANGE.sub(lambda m: f"{_num(m.group(1))}-{_num(m.group(2))}", text)
+    text = re.sub(r"(?<!\d)-|-(?!\d)", " ", text)
+    text = re.sub(r"\s+%", "%", text)
     return re.sub(r"\s+", " ", text).strip()
 
 

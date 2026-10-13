@@ -106,13 +106,13 @@ def test_analyze_all_two_sources(sample_video, sample_video_b, tmp_path):
     work = tmp_path / "work"
     infos = analyze_all(src, work, transcriber=lambda p: [Word("xin", 0.1, 0.3)])
     assert set(infos) == {"a.mp4", "b roll.mp4"}
-    for stem in ("a", "b roll"):
-        d = work / stem
+    for name in ("a.mp4", "b roll.mp4"):
+        d = work / name
         for name in ("normalized.mp4", "transcript.json", "silences.json", "keep.json"):
             assert (d / name).exists(), d / name
-    keep = json.loads((work / "a" / "keep.json").read_text(encoding="utf-8"))
+    keep = json.loads((work / "a.mp4" / "keep.json").read_text(encoding="utf-8"))
     assert len(keep) == 2
-    words = json.loads((work / "a" / "transcript.json").read_text(encoding="utf-8"))
+    words = json.loads((work / "a.mp4" / "transcript.json").read_text(encoding="utf-8"))
     assert words == [{"text": "xin", "start": 0.1, "end": 0.3}]
     # nguồn không bị đụng tới
     assert (src / "a.mp4").stat().st_size == sample_video.stat().st_size
@@ -122,3 +122,34 @@ def test_analyze_all_two_sources(sample_video, sample_video_b, tmp_path):
 def test_transcribe_real(sample_video):
     words = transcribe(sample_video)
     assert isinstance(words, list)
+
+
+def test_same_stem_sources_kept_apart(sample_video, sample_video_b, tmp_path):
+    src = tmp_path / "src"
+    src.mkdir()
+    shutil.copy(sample_video, src / "clip.mp4")
+    shutil.copy(sample_video_b, src / "clip.mov")
+    infos = analyze_all(src, tmp_path / "work", transcriber=lambda p: [])
+    assert (infos["clip.mp4"].width, infos["clip.mov"].width) == (720, 1920)
+
+
+def test_skipped_transcription_is_redone_later(sample_video, tmp_path):
+    from vf.analyze import analyze_source, load_words
+    src = tmp_path / "a.mp4"
+    shutil.copy(sample_video, src)
+    analyze_source(src, tmp_path / "work", transcriber=None)
+    assert load_words(tmp_path / "work", "a.mp4") == []
+    analyze_source(src, tmp_path / "work", transcriber=lambda p: [Word("xin", 0.1, 0.3)])
+    assert load_words(tmp_path / "work", "a.mp4") == [Word("xin", 0.1, 0.3)]
+
+
+def test_truncated_normalized_file_is_redone(sample_video, tmp_path):
+    """normalize bị ngắt giữa chừng để lại file hỏng mới hơn nguồn → lần sau phải làm lại, không dùng file hỏng."""
+    from vf.analyze import analyze_source
+    src = tmp_path / "a.mp4"
+    shutil.copy(sample_video, src)
+    d = tmp_path / "work" / "a.mp4"
+    d.mkdir(parents=True)
+    (d / "normalized.mp4").write_bytes(b"\x00" * 1000)
+    info = analyze_source(src, tmp_path / "work", transcriber=None)
+    assert abs(info.duration - 5.0) <= 0.1

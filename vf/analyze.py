@@ -25,20 +25,37 @@ def _fresh(out: Path, src: Path) -> bool:
     return out.exists() and out.stat().st_mtime >= src.stat().st_mtime
 
 
+def source_work_dir(work_dir: Path, source_name: str) -> Path:
+    """work/<tên file nguồn kèm đuôi>/ — 'clip.mov' và 'clip.mp4' không dùng chung kết quả."""
+    return Path(work_dir) / source_name
+
+
 def analyze_source(
-    src: Path, work_dir: Path, transcriber: Callable[[Path], list[Word]] = transcribe
+    src: Path, work_dir: Path, transcriber: Callable[[Path], list[Word]] | None = transcribe
 ) -> MediaInfo:
     """Ghi work/<tên-nguồn>/{normalized.mp4, transcript.json, silences.json, keep.json}.
-    Bỏ qua bước đã có kết quả mới hơn file nguồn (chạy lại nhanh)."""
-    d = Path(work_dir) / src.stem
+    Bỏ qua bước đã có kết quả mới hơn file nguồn (chạy lại nhanh).
+    transcriber=None: bỏ phiên âm (ghi transcript rỗng kèm dấu 'transcript.skipped' để lần sau phiên âm lại)."""
+    d = source_work_dir(work_dir, src.name)
     d.mkdir(parents=True, exist_ok=True)
     norm = d / "normalized.mp4"
-    if not _fresh(norm, src):
+    info = None
+    if _fresh(norm, src):
+        try:
+            info = probe(norm)
+        except Exception:  # file dở dang từ lần chạy bị ngắt
+            info = None
+    if info is None:
         normalize(src, norm)
-    info = probe(norm)
-    tr = d / "transcript.json"
-    if not _fresh(tr, norm):
+        info = probe(norm)
+    tr, skipped = d / "transcript.json", d / "transcript.skipped"
+    if transcriber is None:
+        if not tr.exists() or skipped.exists():
+            _write_json(tr, [])
+            skipped.touch()
+    elif not _fresh(tr, norm) or skipped.exists():
         _write_json(tr, [asdict(w) for w in transcriber(norm)])
+        skipped.unlink(missing_ok=True)
     silences = detect_silences(norm)
     _write_json(d / "silences.json", [asdict(r) for r in silences])
     _write_json(d / "keep.json", [asdict(r) for r in keep_ranges(info.duration, silences)])
@@ -47,14 +64,14 @@ def analyze_source(
 
 
 def analyze_all(
-    sources_dir: Path, work_dir: Path, transcriber: Callable[[Path], list[Word]] = transcribe
+    sources_dir: Path, work_dir: Path, transcriber: Callable[[Path], list[Word]] | None = transcribe
 ) -> dict[str, MediaInfo]:
     """Khoá = tên file nguồn (kèm đuôi), đúng như `Segment.source` và `brief.source_roles`."""
     return {src.name: analyze_source(src, work_dir, transcriber) for src in list_videos(sources_dir)}
 
 
 def load_words(work_dir: Path, source_name: str) -> list[Word]:
-    p = Path(work_dir) / Path(source_name).stem / "transcript.json"
+    p = source_work_dir(work_dir, source_name) / "transcript.json"
     if not p.exists():
         return []
     return [Word(**w) for w in json.loads(p.read_text(encoding="utf-8"))]

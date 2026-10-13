@@ -80,6 +80,12 @@ def normalize(src: Path, dst: Path) -> Path:
     ]
     if has_audio:
         cmd += ["-af", "aresample=async=1:first_pts=0", "-c:a", "aac", "-b:a", "192k", "-ar", "48000", "-ac", "2"]
-    cmd += ["-map_metadata", "-1", "-movflags", "+faststart", str(dst)]
-    run(cmd)
+    partial = dst.with_name(dst.stem + ".partial" + dst.suffix)
+    cmd += ["-map_metadata", "-1", "-movflags", "+faststart", str(partial)]
+    try:
+        run(cmd)
+    except BaseException:
+        partial.unlink(missing_ok=True)
+        raise
+    partial.replace(dst)
     return dst

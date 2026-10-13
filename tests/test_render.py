@@ -108,3 +108,37 @@ def test_loudness_matched_across_sources(loud_and_quiet, tmp_path):
     first = _lufs_slice(out, 0.3, 2.0, tmp_path)
     second = _lufs_slice(out, 3.0, 2.3, tmp_path)
     assert abs(first - second) <= 2.0, (first, second)
+
+
+def test_broll_without_speech_not_boosted_to_voice_level(loud_and_quiet):
+    from vf.render import source_gains
+    infos = {k: probe(p) for k, p in loud_and_quiet.items()}
+    g = source_gains(loud_and_quiet, infos, set(infos), speech={"loud.mp4"})
+    lq = measure_lufs(loud_and_quiet["quiet.mp4"])
+    ll = measure_lufs(loud_and_quiet["loud.mp4"])
+    assert g["loud.mp4"] == pytest.approx(-16 - ll, abs=0.01)
+    assert g["quiet.mp4"] == pytest.approx(min(0.0, -26 - lq), abs=0.01)
+
+
+def _gray_frame(path, t, w=108, h=192):
+    raw = subprocess.run(["ffmpeg", "-v", "error", "-ss", str(t), "-i", str(path), "-frames:v", "1",
+                          "-vf", f"scale={w}:{h}", "-f", "rawvideo", "-pix_fmt", "gray", "-"],
+                         capture_output=True, check=True).stdout
+    return raw, w, h
+
+
+def test_zoom_punch_stays_centered(tmp_path):
+    src = tmp_path / "dot.mp4"
+    # nền trắng, ô đen 200x200 ở chính giữa khung 1080x1920
+    _ff("-f", "lavfi", "-i", "color=c=white:s=1080x1920:r=30:d=2", "-f", "lavfi", "-i", "sine=d=2",
+        "-vf", "drawbox=x=440:y=860:w=200:h=200:color=black:t=fill",
+        "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac", str(src))
+    v = Variant(id="z", hook_type="x", hook={"source": "d.mp4", "start": 0, "end": 2}, segments=[],
+                effects=[{"kind": "zoom_punch", "at": 0.0, "duration": 2.0}], captions=False, rationale="t")
+    out = render_variant({"d.mp4": src}, {"d.mp4": probe(src)}, v, tmp_path / "o.mp4", brand=BRAND,
+                         style_path=STYLE, work_dir=tmp_path / "w")
+    raw, w, h = _gray_frame(out, 1.8)
+    pts = [(i % w, i // w) for i, b in enumerate(raw) if b < 100]
+    cx = sum(x for x, _ in pts) / len(pts)
+    cy = sum(y for _, y in pts) / len(pts)
+    assert abs(cx - w / 2) <= 2 and abs(cy - h / 2) <= 2, (cx, cy)

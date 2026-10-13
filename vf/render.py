@@ -19,6 +19,7 @@ from vf.transcribe import Word
 
 W, H, FPS = 1080, 1920, 30
 SOURCE_TARGET_LUFS = -16.0
+BROLL_TARGET_LUFS = -26.0  # nguồn không có lời nói: chỉ giảm, không bao giờ tăng (tránh đẩy tiếng ồn nền)
 MUSIC_BELOW_VOICE_DB = 18.0
 JOIN_FADE_S = 0.04  # nửa của 0.08 s mỗi bên chỗ nối hai nguồn khác nhau
 DECLICK_S = 0.01
@@ -84,7 +85,9 @@ def _effect_filters(effects: list[Effect]) -> list[str]:
     zooms = [e for e in effects if e.kind == "zoom_punch"]
     if zooms:
         z = "+".join(f"0.08*{_between(e)}*(t-{e.at:.3f})/{max(e.duration, 0.01):.3f}" for e in zooms)
-        out.append(f"scale=w='2*trunc({W}*(1+{z})/2)':h='2*trunc({H}*(1+{z})/2)':eval=frame,crop={W}:{H}")
+        zw, zh = f"2*trunc({W}*(1+{z})/2)", f"2*trunc({H}*(1+{z})/2)"
+        # crop không thấy kích thước đổi theo khung → tính tâm trực tiếp từ cùng biểu thức zoom
+        out.append(f"scale=w='{zw}':h='{zh}':eval=frame,crop={W}:{H}:x='({zw}-{W})/2':y='({zh}-{H})/2'")
     shakes = [e for e in effects if e.kind == "shake"]
     if shakes:
         dx = "+".join(f"{_between(e)}*16*sin(90*t)" for e in shakes)
@@ -113,12 +116,20 @@ def _overlay_filter(o: TextOverlay, idx: int, font: Path, text_dir: Path) -> str
     )
 
 
-def source_gains(sources: dict[str, Path], infos: dict[str, MediaInfo], names: set[str]) -> dict[str, float]:
-    """Gain (dB) đưa mỗi nguồn về -16 LUFS, đo một lần cho cả file."""
+def source_gains(
+    sources: dict[str, Path], infos: dict[str, MediaInfo], names: set[str], speech: set[str] | None = None
+) -> dict[str, float]:
+    """Gain (dB) đưa nguồn có lời nói về -16 LUFS, đo một lần cho cả file.
+    `speech`: các nguồn có lời nói; None = coi mọi nguồn là có lời nói."""
     gains = {}
     for name in names:
         lufs = measure_lufs(sources[name]) if infos[name].has_audio else -math.inf
-        gains[name] = 0.0 if lufs < -60 else max(-20.0, min(20.0, SOURCE_TARGET_LUFS - lufs))
+        if lufs < -60:
+            gains[name] = 0.0
+        elif speech is None or name in speech:
+            gains[name] = max(-20.0, min(20.0, SOURCE_TARGET_LUFS - lufs))
+        else:
+            gains[name] = max(-20.0, min(0.0, BROLL_TARGET_LUFS - lufs))
     return gains
 
 
@@ -132,10 +143,11 @@ def build_ffmpeg_cmd(
     *,
     gains: dict[str, float] | None = None,
     text_dir: Path | None = None,
+    speech: set[str] | None = None,
 ) -> list[str]:
     pieces = v.pieces()
     if gains is None:
-        gains = source_gains(sources, infos, {p.source for p in pieces})
+        gains = source_gains(sources, infos, {p.source for p in pieces}, speech)
     text_dir = Path(text_dir) if text_dir else Path(tempfile.mkdtemp(prefix="vf-text-"))
     cmd = ["ffmpeg", "-y", "-v", "error"]
     for p in pieces:
@@ -227,7 +239,10 @@ def render_variant(
     out = Path(out)
     out.parent.mkdir(parents=True, exist_ok=True)
     tmp_out = out.with_name(out.stem + ".partial" + out.suffix)
-    cmd = build_ffmpeg_cmd(sources, infos, v, ass_path, brand, tmp_out, text_dir=work / f"{v.id}_text")
+    spoken = {name for name, ws in (words_by_source or {}).items() if ws}
+    speech = spoken or None  # chưa có transcript nào → không đoán, coi mọi nguồn là có lời nói
+    cmd = build_ffmpeg_cmd(sources, infos, v, ass_path, brand, tmp_out, text_dir=work / f"{v.id}_text",
+                           speech=speech)
     try:
         run(cmd)
     except Exception:
