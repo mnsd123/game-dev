@@ -1,9 +1,12 @@
-"""CLI điều phối: vf new | analyze | render."""
+"""CLI điều phối: vf doctor | status | new | analyze | render | style | learn."""
 from __future__ import annotations
 
 import csv
 import json
+import os
 import re
+import shutil
+import subprocess
 from dataclasses import asdict
 from pathlib import Path
 
@@ -243,6 +246,82 @@ def render(
     _write_review(out_dir / "review.csv", rows)
     typer.echo(f"Output: {out_dir}")
     if failures:
+        raise typer.Exit(code=1)
+
+
+@app.command()
+def doctor(config: Path = ConfigOpt) -> None:
+    """Kiểm tra máy đã sẵn sàng chưa: ffmpeg, vf.toml, thư mục Drive, Remotion, model phiên âm, GPU."""
+    errors = 0
+
+    def ok(msg: str) -> None:
+        typer.echo(f"OK        {msg}")
+
+    def warn(msg: str) -> None:
+        typer.echo(f"CẢNH BÁO  {msg}")
+
+    def err(msg: str) -> None:
+        nonlocal errors
+        errors += 1
+        typer.echo(f"LỖI       {msg}")
+
+    ff = shutil.which("ffmpeg")
+    if not ff:
+        err("không thấy ffmpeg — Windows: winget install Gyan.FFmpeg (mở lại cửa sổ lệnh sau khi cài)")
+    else:
+        version = subprocess.run([ff, "-version"], capture_output=True, encoding="utf-8", errors="replace").stdout
+        m = re.search(r"ffmpeg version n?(\d+)", version)
+        major = int(m.group(1)) if m else 0
+        (ok if major >= 6 else err)(f"ffmpeg {major or '?'} (cần ≥ 6)")
+        filters = subprocess.run([ff, "-hide_banner", "-filters"], capture_output=True,
+                                 encoding="utf-8", errors="replace").stdout
+        if " zscale " not in filters:
+            warn("ffmpeg thiếu zscale: video HDR của iPhone sẽ bị nhạt màu (bản Gyan.FFmpeg/brew có sẵn)")
+
+    if not Path(config).exists():
+        err(f"chưa có {config} — chạy scripts/setup-windows.ps1 hoặc chép vf.toml.example thành vf.toml")
+    else:
+        try:
+            cfg = load_config(config)
+        except ValueError as e:
+            err(str(e))
+            cfg = None
+        if cfg is not None:
+            if not cfg.drive_root.is_dir():
+                err(f"không thấy thư mục Drive {cfg.drive_root} — kiểm tra Google Drive for Desktop và drive_root")
+            elif not cfg.sources_dir.is_dir():
+                err(f"không thấy thư mục {cfg.sources_dir}")
+            else:
+                n = len(list_videos(cfg.sources_dir))
+                (ok if n else warn)(f"{cfg.sources_dir}: {n} video")
+            if cfg.references_dir.is_dir():
+                ok(f"{cfg.references_dir}: {len(list_videos(cfg.references_dir))} video tham khảo")
+
+    try:
+        import faster_whisper  # noqa: F401
+        ok("faster-whisper đã cài")
+    except ImportError:
+        err('chưa cài faster-whisper — chạy: pip install -e ".[dev]"')
+    model = os.environ.get("VF_WHISPER_MODEL", "large-v3")
+    hub = Path(os.environ.get("HF_HOME", Path.home() / ".cache" / "huggingface")) / "hub"
+    if list(hub.glob(f"models--*faster-whisper-{model}*")):
+        ok(f"model phiên âm {model} đã tải")
+    else:
+        warn(f"model phiên âm {model} chưa tải — lần analyze đầu sẽ tải (large-v3 ~3 GB)")
+    if shutil.which("nvidia-smi"):
+        ok("có GPU NVIDIA — phiên âm nhanh")
+    elif model == "large-v3":
+        warn("không có GPU NVIDIA — phiên âm large-v3 bằng CPU chậm; muốn nhanh hơn: set VF_WHISPER_MODEL=medium")
+
+    from vf.motion import remotion_available
+
+    if remotion_available():
+        ok("Remotion đã cài — chữ động")
+    else:
+        warn("chưa cài Remotion — chữ sẽ tĩnh; cài: cd remotion && npm install (cần Node 20+)")
+
+    typer.echo("Sẵn sàng. Gõ /smilee-video trong Claude Code." if not errors else f"Còn {errors} lỗi cần sửa.")
+    if errors:
         raise typer.Exit(code=1)
 
 

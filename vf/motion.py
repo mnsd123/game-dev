@@ -161,7 +161,7 @@ def render_overlay(
     browser = os.environ.get("VF_BROWSER_EXECUTABLE")
     if browser:
         cmd.append(f"--browser-executable={browser}")
-    proc = subprocess.run(cmd, cwd=REMOTION_DIR, capture_output=True, text=True)
+    proc = subprocess.run(cmd, cwd=REMOTION_DIR, capture_output=True, encoding="utf-8", errors="replace")
     if proc.returncode != 0:
         partial.unlink(missing_ok=True)
         raise RuntimeError(f"Remotion render lỗi:\n{proc.stdout[-1500:]}\n{proc.stderr[-1500:]}")

@@ -8,7 +8,8 @@ from pathlib import Path
 
 def run(cmd: list[str]) -> subprocess.CompletedProcess:
     """Chạy lệnh, raise RuntimeError kèm stderr nếu lỗi."""
-    proc = subprocess.run(cmd, capture_output=True, text=True)
+    # UTF-8 cố định: Windows mặc định cp1252 sẽ lỗi với tên file có dấu ("source gốc")
+    proc = subprocess.run(cmd, capture_output=True, encoding="utf-8", errors="replace")
     if proc.returncode != 0:
         raise RuntimeError(f"Lệnh lỗi ({proc.returncode}): {' '.join(cmd)}\n{proc.stderr[-2000:]}")
     return proc

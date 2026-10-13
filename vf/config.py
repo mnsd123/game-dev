@@ -20,7 +20,14 @@ class Config:
 
 def load_config(path: Path = Path("vf.toml")) -> Config:
     with open(path, "rb") as f:
-        data = tomllib.load(f)
+        try:
+            data = tomllib.load(f)
+        except tomllib.TOMLDecodeError as e:
+            raise ValueError(
+                f"{path}: file cấu hình sai cú pháp ({e}). Đường dẫn Windows hãy viết bằng dấu / "
+                "(drive_root = \"G:/My Drive/EDIT\") hoặc đặt trong dấu nháy đơn "
+                "(drive_root = 'G:\\My Drive\\EDIT')."
+            ) from e
     if "drive_root" not in data:
         raise ValueError(f"{path}: thiếu khoá 'drive_root'")
     root = Path(data["drive_root"]).expanduser()

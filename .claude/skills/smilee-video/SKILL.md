@@ -9,10 +9,15 @@ description: Use when có source gốc mới trong thư mục Drive EDIT/"source
 
 Chạy mọi lệnh ở gốc repo (thư mục có `vf.toml`). Không bao giờ sửa, xoá, di chuyển file trong `source gốc` và `video tham khảo`.
 
-## 0. Kiểm tra môi trường (chỉ dừng khi thiếu)
+## 0. Kiểm tra môi trường (chỉ dừng khi có LỖI)
 
-- Có `vf.toml` và lệnh `vf` chạy được. Nếu thiếu thì làm theo README (venv, `pip install -e ".[dev]"`, `cd remotion && npm install`).
-- Chưa có `remotion/node_modules` thì vẫn chạy được, nhưng chữ sẽ tĩnh. Báo người dùng một dòng.
+```
+vf doctor
+```
+- Lệnh `vf` nằm trong `.venv`: Windows gọi `.venv\Scripts\vf.exe`, Mac/Linux gọi `.venv/bin/vf`, nếu chưa activate venv.
+- Chưa có `.venv` hoặc `vf.toml` trên Windows → chạy `powershell -ExecutionPolicy Bypass -File scripts\setup-windows.ps1` (tự cài ffmpeg, Python, Node, thư viện, Remotion, tự tìm thư mục EDIT), rồi chạy lại `vf doctor`.
+- Dòng `LỖI` → sửa theo gợi ý trên dòng đó rồi chạy lại. Dòng `CẢNH BÁO` → báo người dùng một dòng và chạy tiếp.
+- Đang ở phiên **cloud** và `drive_root` không tồn tại → dừng, báo người dùng mở phiên **Local** trên máy có Google Drive for Desktop (phiên cloud không đọc được Drive).
 
 ## 1. Xem có gì mới
 

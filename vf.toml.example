@@ -1,4 +1,6 @@
-# Chép file này thành vf.toml và sửa đường dẫn tới thư mục EDIT trong Google Drive (đã bật "Available offline").
-# Windows: drive_root = "G:/My Drive/EDIT"
+# Chép file này thành vf.toml (hoặc chạy scripts/setup-windows.ps1 để tự tạo) và sửa đường dẫn tới
+# thư mục EDIT trong Google Drive (đã bật "Available offline").
+# Windows: dùng dấu /  →  drive_root = "G:/My Drive/EDIT"
+#          hoặc nháy đơn →  drive_root = 'G:\My Drive\EDIT'
 # Mac:     drive_root = "~/Library/CloudStorage/GoogleDrive-mailhoang0720@gmail.com/My Drive/EDIT"
 drive_root = "G:/My Drive/EDIT"

@@ -44,7 +44,7 @@ def find_font(brand: Path) -> Path:
     candidates = [Path("C:/Windows/Fonts/arialbd.ttf"), Path("/Library/Fonts/Arial Bold.ttf"),
                   Path("/System/Library/Fonts/Supplemental/Arial Bold.ttf")]
     if shutil.which("fc-match"):
-        out = subprocess.run(["fc-match", "-f", "%{file}", "Arial:bold"], capture_output=True, text=True).stdout
+        out = subprocess.run(["fc-match", "-f", "%{file}", "Arial:bold"], capture_output=True, encoding="utf-8", errors="replace").stdout
         if out:
             candidates.insert(0, Path(out))
     for c in candidates:

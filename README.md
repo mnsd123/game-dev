@@ -6,10 +6,24 @@ this is a new game development team.
 
 Pipeline Python + ffmpeg để edit hàng loạt video Smilee. Kế hoạch: `docs/superpowers/plans/`.
 
-### Cài trên máy (Windows/Mac)
+### Cài trên Windows (1 lệnh)
+
+Bật *Available offline* cho thư mục `EDIT` trong Google Drive for Desktop, rồi trong PowerShell:
 
 ```
-git clone <repo> video-factory && cd video-factory
+git clone https://github.com/mnsd123/game-dev video-factory
+cd video-factory
+git checkout claude/smilee-video-pipeline-setup-y7gas2
+powershell -ExecutionPolicy Bypass -File scripts\setup-windows.ps1
+```
+
+Script tự cài ffmpeg, Python 3.11, Node, thư viện, Remotion, tự tìm thư mục EDIT, ghi `vf.toml` và chạy `vf doctor`.
+Kiểm tra lại bất cứ lúc nào: `.venv\Scripts\vf.exe doctor`.
+
+### Cài tay (Mac hoặc khi không dùng script)
+
+```
+git clone https://github.com/mnsd123/game-dev video-factory && cd video-factory
 git checkout claude/smilee-video-pipeline-setup-y7gas2
 python -m venv .venv
 .venv\Scripts\activate        # Mac: source .venv/bin/activate

@@ -137,3 +137,23 @@ def test_new_prefills_unused_sources(tmp_path, sample_video):
     assert r.exit_code == 0, r.output
     brief = yaml.safe_load((jobs / "lo-02" / "brief.yaml").read_text(encoding="utf-8"))
     assert brief["source_roles"] == {"moi.mov": "a_roll"}
+
+
+def test_doctor_reports_missing_drive(tmp_path):
+    cfg = tmp_path / "vf.toml"
+    cfg.write_text(f'drive_root = "{(tmp_path / "khong-co").as_posix()}"\n', encoding="utf-8")
+    r = runner.invoke(app, ["doctor", "--config", str(cfg)])
+    assert r.exit_code == 1
+    assert "LỖI" in r.output and "khong-co" in r.output
+
+
+def test_doctor_ok_with_sources(tmp_path, sample_video):
+    cfg = _drive_with_sources(tmp_path, sample_video, ["a.mp4"])
+    r = runner.invoke(app, ["doctor", "--config", str(cfg)])
+    assert r.exit_code == 0, r.output
+    assert "ffmpeg" in r.output and "1 video" in r.output
+
+
+def test_doctor_without_config(tmp_path):
+    r = runner.invoke(app, ["doctor", "--config", str(tmp_path / "vf.toml")])
+    assert r.exit_code == 1 and "vf.toml" in r.output
