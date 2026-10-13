@@ -85,3 +85,16 @@ def test_new_job_creates_brief(project):
     r = runner.invoke(app, ["new", "lo-02", "--jobs-dir", str(project["tmp"] / "jobs")])
     assert r.exit_code == 0, r.output
     assert (project["tmp"] / "jobs" / "lo-02" / "brief.yaml").exists()
+
+
+def test_learn_prints_stats(tmp_path):
+    out = tmp_path / "EDIT" / "out" / "lo-01"
+    out.mkdir(parents=True)
+    (out / "review.csv").write_text(
+        "variant,hook_type,hook_text,score,notes,views,retention_3s\nv1,pain,x,4,,,50%\n", encoding="utf-8-sig")
+    cfg = tmp_path / "vf.toml"
+    cfg.write_text(f'drive_root = "{(tmp_path / "EDIT").as_posix()}"\n', encoding="utf-8")
+    r = runner.invoke(app, ["learn", "--config", str(cfg)])
+    assert r.exit_code == 0, r.output
+    assert "| pain | 1 | 4.00 | 50% |" in r.output
+    assert "lo-01" in r.output

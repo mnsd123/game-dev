@@ -12,6 +12,7 @@ import typer
 from vf.analyze import analyze_all, load_words
 from vf.brief import load_brief, read_phrase_list
 from vf.config import load_config
+from vf.learn import stats_markdown, summarize_reviews
 from vf.edl import Variant, load_edl, output_duration
 from vf.paths import BRAND_DIR, BRIEF_TEMPLATE, CAPTION_STYLE, FORBIDDEN_PATH, PENDING_PATH
 from vf.probe import MediaInfo
@@ -156,6 +157,18 @@ def render(
     typer.echo(f"Output: {out_dir}")
     if failures:
         raise typer.Exit(code=1)
+
+
+@app.command()
+def learn(config: Path = ConfigOpt) -> None:
+    """Tổng hợp mọi <drive>/out/*/review.csv theo kiểu hook (đầu vào cho skill video-learnings)."""
+    cfg = load_config(config)
+    csvs = sorted(cfg.out_dir.glob("*/review.csv"))
+    if not csvs:
+        typer.echo(f"Chưa có review.csv nào trong {cfg.out_dir}")
+        raise typer.Exit(code=1)
+    typer.echo("Lô: " + ", ".join(p.parent.name for p in csvs))
+    typer.echo(stats_markdown(summarize_reviews(csvs)))
 
 
 if __name__ == "__main__":
