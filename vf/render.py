@@ -13,7 +13,8 @@ from vf.captions import remap_words, words_to_ass
 from vf.edl import Effect, TextOverlay, Variant, output_duration
 from vf.ffutil import run
 from vf.probe import MediaInfo
-from vf.qa import measure_lufs
+from vf.brief import FORBIDDEN_PATH, PENDING_PATH, read_phrase_list
+from vf.qa import ClaimViolation, check_claims, measure_lufs
 from vf.transcribe import Word
 
 W, H, FPS = 1080, 1920, 30
@@ -206,12 +207,20 @@ def render_variant(
     brand: Path = DEFAULT_BRAND,
     style_path: Path = DEFAULT_STYLE,
     work_dir: Path | None = None,
+    forbidden: list[str] | None = None,
 ) -> Path:
+    """Kiểm tra claim trên mọi overlay + phụ đề TRƯỚC khi render; vi phạm → ClaimViolation, không tạo file."""
+    if forbidden is None:
+        forbidden = read_phrase_list(FORBIDDEN_PATH) + read_phrase_list(PENDING_PATH)
+    words = remap_words(words_by_source or {}, v.pieces()) if v.captions else []
+    texts = [o.text for o in v.overlays] + ([" ".join(w.text for w in words)] if words else [])
+    hits = check_claims(texts, forbidden)
+    if hits:
+        raise ClaimViolation(f"biến thể '{v.id}': chữ trên màn hình chứa cụm cấm/chưa có bằng chứng: {hits}")
     work = Path(work_dir) if work_dir else Path(tempfile.mkdtemp(prefix=f"vf-{v.id}-"))
     work.mkdir(parents=True, exist_ok=True)
     ass_path = None
     if v.captions:
-        words = remap_words(words_by_source or {}, v.pieces())
         if words:
             ass_path = work / f"{v.id}.ass"
             ass_path.write_text(words_to_ass(words, style_path), encoding="utf-8")

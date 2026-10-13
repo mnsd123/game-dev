@@ -42,7 +42,7 @@ def probe(path: Path) -> MediaInfo:
         w, h = h, w
     fps = _rate(video.get("avg_frame_rate", "0/0")) or _rate(video.get("r_frame_rate", "0/0"))
     return MediaInfo(
-        duration=float(data["format"]["duration"]),
+        duration=float(data["format"].get("duration", 0.0)),
         width=w,
         height=h,
         fps=round(fps, 3),
