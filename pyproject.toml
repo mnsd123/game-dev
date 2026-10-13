@@ -26,4 +26,5 @@ packages = ["vf"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+addopts = "-m 'not slow'"
 markers = ["slow: chạy model thật (faster-whisper), bỏ qua bằng -m 'not slow'"]
