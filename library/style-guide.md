@@ -1,6 +1,6 @@
 # Style guide Smilee
 
-Trạng thái: ĐÃ DUYỆT 2026-10-14
+Trạng thái: ĐÃ DUYỆT 2026-10-14 — cập nhật Vox 2026-10-14 (theo feedback người dùng lô lo-02)
 
 Video đã xem (thư mục `EDIT/video mẫu tham khảo/`, chỉ học kỹ thuật):
 - **A** `snaptik.vn_7690505641718271284.mp4` — 33.4 s, 576x1024. Bản dựng lại clip KOL hộp quà 20/10 (cùng nguồn với lo-01).
@@ -73,3 +73,13 @@ Chưa phân tích. Khi dùng nhạc: chỉ nhạc có bản quyền đặt trong
 **Nên:** nhịp 2–4 s/cảnh; thẻ chữ hai dòng nền tím mận; ô từ khoá; thanh đèn có tiến độ; nhãn TRƯỚC/SAU; bộ đếm; thẻ toàn màn hình khi chuyển ý.
 
 **Không:** hình, nhạc, giọng, câu chữ nguyên văn của A và B; thương hiệu/giao diện phần mềm trong B; "SĂN SALE / VÀO LIVE" (A) khi `goal` là awareness; mọi cụm trong `forbidden.txt` và `claims_pending.txt` (ví dụ "cấp tốc", "đảm bảo").
+
+## 10. Phong cách Vox (bổ sung 2026-10-14, feedback lo-02)
+
+Nguyên tắc: **chỉ thêm đồ hoạ ở đoạn nguồn "trơn"** (không có chữ in sẵn, không có sticker/khoanh/hình minh hoạ sẵn). Đoạn nguồn đã tự minh hoạ (đèn sáng, bảng màu, khoanh đỏ có sẵn) → để nguyên.
+
+- **Zoom ống kính** (`effects.kind = "zoom_to"`, `zoom` 1.4–1.7, `track: "teeth"` để bám theo răng): đẩy chậm 0.35 s vào chi tiết cần nói (răng vàng), giữ tới hết cảnh.
+- **Khoanh tay → mũi tên → ghi chú** (`graphics.kind = "callout"`): vòng đỏ vẽ tay quanh răng, mũi tên, rồi mới hiện nhãn chữ đen trên **vệt bút dạ vàng** (#FFE14D). Thứ tự bắt buộc: zoom → khoanh → mũi tên → chữ.
+- **Ảnh ghép giấy** (`graphics.kind = "collage"`): nền giấy kem có hạt, 1–2 ảnh cắt từ chính nguồn, viền trắng, băng keo, nghiêng ±4–5°, nhãn bút dạ ("TRƯỚC" / "SAU 7 NGÀY"). Đặt **sau** cảnh trước/sau gốc (để cảnh gốc chạy trọn), trên một đoạn nói chuyện trơn.
+- **Chữ Vox** (`style: "vox"`): dòng chính viết hoa đen trên vệt bút dạ vàng quét trái → phải, dòng phụ trên dải giấy trắng. Dùng cho ý bổ sung (gel tiết kiệm, đắp mặt nạ). CTA cuối vẫn dùng thẻ tím mận `lower`.
+- Không còn: hàm răng vector / vầng sáng đèn / thẻ đếm ngày đè lên cảnh nguồn đã minh hoạ.

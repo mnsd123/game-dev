@@ -5,6 +5,7 @@ description: Use when có source gốc mới trong thư mục Drive EDIT/"source
 
 # Dựng video Smilee từ source gốc mới (trọn quy trình) — v1
 
+> **v1.3 (2026-10-14)** — phong cách Vox: zoom ống kính bám răng + khoanh tay + bút dạ, ảnh ghép giấy trước/sau; chỉ thêm đồ hoạ ở đoạn nguồn trơn.
 > **v1.2 (2026-10-14)** — dựng theo `library/style-guide.md` (ĐÃ DUYỆT, học từ `EDIT/video mẫu tham khảo/`): thẻ chữ hai dòng tím mận, nhãn TRƯỚC/SAU, thẻ đếm ngày, hàm răng vector minh hoạ đèn; cảnh ≥ 1.2 s.
 > **v1 (2026-10-14)** — sau lô pilot lo-01. Mới so với bản đầu: tránh "vấp hình" ở điểm chuyển cảnh, chữ font Montserrat có nền + tự né mặt, hiệu ứng minh hoạ đèn xanh/đỏ và răng vàng → trắng, phiên âm GPU trên Windows. Lịch sử: `CHANGELOG.md` cùng thư mục.
 

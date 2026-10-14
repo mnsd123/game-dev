@@ -13,12 +13,12 @@ import {
   useCurrentFrame,
   useVideoConfig,
 } from "remotion";
-import { CounterFx, LightFx, TeethFx, WhitenFx } from "./Graphics";
+import { CalloutFx, CollageFx, CounterFx, LightFx, TeethFx, VoxLabel, WhitenFx } from "./Graphics";
 import { Colors, DEFAULT_COLORS, FONT_STACK, OverlayItem, OverlayProps, PALETTE } from "./types";
 
 // khớp FONT_PX / PAD_PX trong vf/placement.py (Python ước lượng chiều cao để chọn chỗ đặt)
-const FONT_PX: Record<OverlayItem["style"], number> = { hook: 80, commit: 72, label: 54, cta: 58, plain: 60, lower: 72, tag: 50 };
-const PAD_PX: Record<OverlayItem["style"], number> = { hook: 18, commit: 22, label: 16, cta: 20, plain: 14, lower: 22, tag: 12 };
+const FONT_PX: Record<OverlayItem["style"], number> = { hook: 80, commit: 72, label: 54, cta: 58, plain: 60, lower: 72, tag: 50, vox: 66 };
+const PAD_PX: Record<OverlayItem["style"], number> = { hook: 18, commit: 22, label: 16, cta: 20, plain: 14, lower: 22, tag: 12, vox: 16 };
 const SUB_PX = 38;
 
 /** Thẻ hai dòng (style guide mục 4): nền tím mận, dòng chính hồng viết hoa, dòng phụ trắng chữ thường. */
@@ -218,7 +218,8 @@ export const Overlay: React.FC<OverlayProps> = ({ overlays, graphics, fontFile, 
         return (
           <Sequence key={`g${i}`} from={from} durationInFrames={dur} name={`${g.kind} ${g.label}`}>
             {g.kind === "light" ? <LightFx item={g} /> : g.kind === "teeth" ? <TeethFx item={g} />
-              : g.kind === "counter" ? <CounterFx item={g} /> : <WhitenFx item={g} />}
+              : g.kind === "counter" ? <CounterFx item={g} /> : g.kind === "callout" ? <CalloutFx item={g} />
+              : g.kind === "collage" ? <CollageFx item={g} /> : <WhitenFx item={g} />}
           </Sequence>
         );
       })}
@@ -227,7 +228,8 @@ export const Overlay: React.FC<OverlayProps> = ({ overlays, graphics, fontFile, 
         const dur = Math.max(1, Math.round(o.end * fps) - from);
         return (
           <Sequence key={i} from={from} durationInFrames={dur} name={o.text}>
-            {o.style === "lower" || o.style === "tag" ? <LowerCard item={o} /> : <Item item={o} colors={c} />}
+            {o.style === "lower" || o.style === "tag" ? <LowerCard item={o} /> : o.style === "vox" ? <VoxLabel item={o} />
+              : <Item item={o} colors={c} />}
           </Sequence>
         );
       })}

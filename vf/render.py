@@ -82,6 +82,39 @@ def _between(e: Effect) -> str:
     return f"between(t,{e.at:.3f},{e.at + e.duration:.3f})"
 
 
+def _focus_expr(e: Effect, axis: int) -> str:
+    """Toạ độ điểm zoom theo thời gian: hằng số, hoặc nội suy tuyến tính giữa các keyframe (bám theo răng)."""
+    if not e.keyframes:
+        return f"{e.focus[axis - 1]:.3f}"
+    k = e.keyframes
+    expr = f"{k[-1][axis]:.3f}"
+    for (t0, *a), (t1, *b) in reversed(list(zip(k, k[1:]))):
+        v0, v1 = a[axis - 1], b[axis - 1]
+        lerp = f"{v0:.3f}+({v1 - v0:.3f})*(t-{e.at + t0:.3f})/{max(t1 - t0, 1e-3):.3f}"
+        expr = f"if(lt(t,{e.at + t1:.3f}),{lerp},{expr})"
+    return f"if(lt(t,{e.at + k[0][0]:.3f}),{k[0][axis]:.3f},{expr})"
+
+
+def _tracked(v: Variant, sources: dict[str, Path]) -> Variant:
+    """Điền keyframes cho zoom_to có track="teeth" (dò trên đoạn nguồn tương ứng)."""
+    if not any(e.kind == "zoom_to" and e.track for e in v.effects):
+        return v
+    from vf.track import track_teeth
+
+    effects = []
+    for e in v.effects:
+        if e.kind == "zoom_to" and e.track and not e.keyframes:
+            acc = 0.0
+            for p in v.pieces():
+                if acc <= e.at < acc + p.duration:
+                    src_t = p.start + (e.at - acc)
+                    e = e.model_copy(update={"keyframes": track_teeth(sources[p.source], src_t, src_t + e.duration)})
+                    break
+                acc += p.duration
+        effects.append(e)
+    return v.model_copy(update={"effects": effects})
+
+
 def _effect_filters(effects: list[Effect]) -> list[str]:
     out: list[str] = []
     zooms = [e for e in effects if e.kind == "zoom_punch"]
@@ -90,6 +123,19 @@ def _effect_filters(effects: list[Effect]) -> list[str]:
         zw, zh = f"2*trunc({W}*(1+{z})/2)", f"2*trunc({H}*(1+{z})/2)"
         # crop không thấy kích thước đổi theo khung → tính tâm trực tiếp từ cùng biểu thức zoom
         out.append(f"scale=w='{zw}':h='{zh}':eval=frame,crop={W}:{H}:x='({zw}-{W})/2':y='({zh}-{H})/2'")
+    tos = [e for e in effects if e.kind == "zoom_to"]
+    if tos:
+        # Vox "zoom ống kính": phóng mượt (smoothstep 0.35 s) tới điểm focus, giữ tới hết effect rồi về 1 (thường trùng cắt cảnh)
+        def ease(e: Effect) -> str:
+            p = f"clip((t-{e.at:.3f})/0.35,0,1)"
+            return f"{_between(e)}*{p}*{p}*(3-2*{p})"
+        z = "1+" + "+".join(f"{e.zoom - 1:.3f}*{ease(e)}" for e in tos)
+        on = "+".join(_between(e) for e in tos)
+        cx = "+".join(f"({_focus_expr(e, 1)})*{_between(e)}" for e in tos) + f"+0.5*(1-({on}))"
+        cy = "+".join(f"({_focus_expr(e, 2)})*{_between(e)}" for e in tos) + f"+0.5*(1-({on}))"
+        zw, zh = f"2*trunc({W}*({z})/2)", f"2*trunc({H}*({z})/2)"
+        out.append(f"scale=w='{zw}':h='{zh}':eval=frame,"
+                   f"crop={W}:{H}:x='clip(({cx})*{zw}-{W}/2,0,{zw}-{W})':y='clip(({cy})*{zh}-{H}/2,0,{zh}-{H})',setsar=1")
     shakes = [e for e in effects if e.kind == "shake"]
     if shakes:
         dx = "+".join(f"{_between(e)}*16*sin(90*t)" for e in shakes)
@@ -248,6 +294,21 @@ def _placed(v: Variant, videos: list[PieceVideo], sources: dict[str, Path]) -> V
     return v.model_copy(update={"overlays": overlays, "graphics": graphics})
 
 
+def _extract_stills(v: Variant, sources: dict[str, Path]) -> None:
+    """Ảnh cho collage → remotion/public/stills/<biến thể>_<k>.jpg (Remotion đọc bằng staticFile)."""
+    from vf.motion import REMOTION_DIR
+
+    k = 0
+    for g in v.graphics:
+        for st in g.stills:
+            dst = REMOTION_DIR / "public" / "stills" / f"{v.id}_{k}.jpg"
+            dst.parent.mkdir(parents=True, exist_ok=True)
+            x0, y0, x1, y1 = st.crop
+            run(["ffmpeg", "-y", "-v", "error", "-ss", f"{st.t:.3f}", "-i", str(sources[st.source]), "-frames:v", "1",
+                 "-vf", f"crop=iw*{x1 - x0:.4f}:ih*{y1 - y0:.4f}:iw*{x0:.4f}:ih*{y0:.4f},scale=720:-2", "-q:v", "3", str(dst)])
+            k += 1
+
+
 def render_variant(
     sources: dict[str, Path],
     infos: dict[str, MediaInfo],
@@ -274,7 +335,8 @@ def render_variant(
     v = v.model_copy(update={"overlays": plan_overlays(v, words_by_source or {})})
     v = strip_text(v, text_sources or set(), text_free)
     words = remap_words(words_by_source or {}, v.pieces()) if v.captions else []
-    texts = ([o.text for o in v.overlays] + [o.sub for o in v.overlays if o.sub] + [g.label for g in v.graphics if g.label]
+    texts = ([o.text for o in v.overlays] + [o.sub for o in v.overlays if o.sub]
+             + [st.label for g in v.graphics for st in g.stills if st.label] + [g.label for g in v.graphics if g.label]
              + ([" ".join(w.text for w in words)] if words else []))
     hits = check_claims(texts, forbidden)
     if hits:
@@ -292,9 +354,11 @@ def render_variant(
     spoken = {name for name, ws in (words_by_source or {}).items() if ws}
     speech = spoken or None  # chưa có transcript nào → không đoán, coi mọi nguồn là có lời nói
     videos = plan_piece_video(v.pieces(), cuts_by_source or {})
+    v = _tracked(v, sources)
     overlay_path = None
     if (v.overlays or v.graphics) and (remotion_available() if motion is None else motion):
         v = _placed(v, videos, sources)
+        _extract_stills(v, sources)
         overlay_path = render_overlay(v, DEFAULT_STYLE_GUIDE, work / f"{v.id}_overlay.mov", brand=brand,
                                       props_path=work / f"{v.id}_overlay.json")
     cmd = build_ffmpeg_cmd(sources, infos, v, ass_path, brand, tmp_out, text_dir=work / f"{v.id}_text",

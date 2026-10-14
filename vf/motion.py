@@ -162,6 +162,18 @@ def _brand_props(brand: Path) -> dict:
     return props
 
 
+def _graphics_props(v: Variant) -> list[dict]:
+    """graphics cho Remotion; ảnh collage đánh số liên tục stills/<biến thể>_<k>.jpg (khớp render._extract_stills)."""
+    out, k = [], 0
+    for g in v.graphics:
+        d = g.model_dump()
+        for st in d["stills"]:
+            st["file"] = f"stills/{v.id}_{k}.jpg"
+            k += 1
+        out.append(d)
+    return out
+
+
 def render_overlay(
     v: Variant,
     style_guide: Path,
@@ -179,7 +191,7 @@ def render_overlay(
     props = {
         "durationInFrames": max(1, round(output_duration(v) * 30)),
         "overlays": [o.model_dump() for o in ovs],
-        "graphics": [g.model_dump() for g in v.graphics],
+        "graphics": _graphics_props(v),
         **_brand_props(brand),
     }
     props_path = Path(props_path) if props_path else out.with_suffix(".json")

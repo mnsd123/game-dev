@@ -1,13 +1,15 @@
 import {
   AbsoluteFill,
   Easing,
+  Img,
+  staticFile,
   interpolate,
   interpolateColors,
   spring,
   useCurrentFrame,
   useVideoConfig,
 } from "remotion";
-import { FONT_STACK, GraphicItem, PALETTE } from "./types";
+import { FONT_STACK, GraphicItem, OverlayItem, PALETTE } from "./types";
 
 const LIGHT = {
   blue: { solid: "#2F7BFF", glow: "47, 123, 255" },
@@ -391,6 +393,245 @@ export const CounterFx: React.FC<{ item: GraphicItem }> = ({ item }) => {
         ))}
       </div>
       {item.label ? <div style={{ marginTop: 40, color: "#FFFFFF", fontSize: 44, fontWeight: 700 }}>{item.label}</div> : null}
+    </AbsoluteFill>
+  );
+};
+
+
+// ───────────── Phong cách Vox: bút dạ vàng, khoanh tay, giấy dán ─────────────
+
+/** Nhãn bút dạ: chữ đen đậm, vệt vàng quét từ trái sang, nghiêng nhẹ. */
+const Highlight: React.FC<{ text: string; fontSize: number; delay?: number; rotate?: number }> = ({
+  text,
+  fontSize,
+  delay = 0,
+  rotate = -2,
+}) => {
+  const frame = useCurrentFrame();
+  const { fps } = useVideoConfig();
+  const sweep = interpolate(frame - delay, [0, 0.3 * fps], [0, 1], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+    easing: Easing.bezier(0.6, 0, 0.3, 1),
+  });
+  const textIn = interpolate(frame - delay, [0.12 * fps, 0.28 * fps], [0, 1], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+  });
+  return (
+    <span
+      style={{
+        display: "inline-block",
+        rotate: `${rotate}deg`,
+        padding: "6px 22px 10px",
+        fontFamily: FONT_STACK,
+        fontWeight: 900,
+        fontSize,
+        lineHeight: 1.1,
+        color: `rgba(17,17,17,${textIn})`,
+        textTransform: "uppercase",
+        backgroundImage: `linear-gradient(100deg, ${PALETTE.marker} 0%, ${PALETTE.marker} 96%, transparent 100%)`,
+        backgroundSize: `${sweep * 100}% 86%`,
+        backgroundPosition: "0 60%",
+        backgroundRepeat: "no-repeat",
+        whiteSpace: "nowrap",
+      }}
+    >
+      {text}
+    </span>
+  );
+};
+
+/** Chữ kiểu Vox: dòng chính trên vệt bút dạ vàng, dòng phụ trên dải giấy trắng. */
+export const VoxLabel: React.FC<{ item: OverlayItem }> = ({ item }) => {
+  const frame = useCurrentFrame();
+  const { durationInFrames } = useVideoConfig();
+  const exit = interpolate(frame, [durationInFrames - 6, durationInFrames], [1, 0], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+  });
+  const subIn = interpolate(frame, [10, 16], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  return (
+    <AbsoluteFill style={{ alignItems: "center", opacity: exit }}>
+      <div style={{ position: "absolute", top: `${(item.y ?? 0.62) * 100}%`, textAlign: "center" }}>
+        <Highlight text={item.text} fontSize={66} />
+        {item.sub ? (
+          <div style={{ marginTop: 10 }}>
+            <span
+              style={{
+                display: "inline-block",
+                rotate: "1deg",
+                padding: "6px 16px",
+                background: "#FFFFFF",
+                fontFamily: FONT_STACK,
+                fontWeight: 700,
+                fontSize: 36,
+                color: "#111111",
+                opacity: subIn,
+              }}
+            >
+              {item.sub}
+            </span>
+          </div>
+        ) : null}
+      </div>
+    </AbsoluteFill>
+  );
+};
+
+/** Đường vòng khoanh vẽ tay: vượt quá một vòng một chút, bán kính rung nhẹ. */
+const handEllipse = (cx: number, cy: number, rx: number, ry: number, wob: number) => {
+  const pts: string[] = [];
+  for (let i = 0; i <= 40; i++) {
+    const a = (i / 40) * Math.PI * 2.12 - 0.4;
+    const r = 1 + wob * Math.sin(i * 1.7);
+    pts.push(`${(cx + rx * r * Math.cos(a)).toFixed(1)},${(cy + ry * r * Math.sin(a)).toFixed(1)}`);
+  }
+  return `M${pts.join(" L")}`;
+};
+
+/** Vox callout: khoanh đỏ vẽ tay quanh vùng (cx, cy, rx, ry) → mũi tên → nhãn bút dạ bên dưới. */
+export const CalloutFx: React.FC<{ item: GraphicItem }> = ({ item }) => {
+  const frame = useCurrentFrame();
+  const { fps, durationInFrames } = useVideoConfig();
+  const W = 1080;
+  const H = 1920;
+  const cx = (item.cx ?? 0.5) * W;
+  const cy = (item.cy ?? 0.5) * H;
+  const rx = (item.rx ?? 0.25) * W;
+  const ry = (item.ry ?? 0.08) * H;
+  const t0 = Math.round(0.22 * fps); // chờ zoom ống kính gần xong
+  const draw = interpolate(frame, [t0, t0 + 0.3 * fps], [0, 1], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+    easing: Easing.out(Easing.quad),
+  });
+  const arrow = interpolate(frame, [t0 + 0.25 * fps, t0 + 0.42 * fps], [0, 1], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+  });
+  const exit = interpolate(frame, [durationInFrames - 5, durationInFrames], [1, 0], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+  });
+  const labelY = cy + ry + 0.1 * H;
+  const L = 2600;
+  const ax0 = cx + 0.18 * W;
+  const ay0 = labelY - 10;
+  const ax1 = cx + rx * 0.55;
+  const ay1 = cy + ry * 0.95;
+  return (
+    <AbsoluteFill style={{ opacity: exit }}>
+      <svg width={W} height={H} style={{ position: "absolute", inset: 0 }}>
+        {[0, 1].map((k) => (
+          <path
+            key={k}
+            d={handEllipse(cx + k * 4, cy - k * 3, rx * (1 + k * 0.03), ry * (1 - k * 0.04), 0.035)}
+            fill="none"
+            stroke={PALETTE.ink}
+            strokeWidth={k ? 6 : 11}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeDasharray={L}
+            strokeDashoffset={L * (1 - draw)}
+            opacity={k ? 0.75 : 1}
+            style={{ filter: "drop-shadow(0 2px 3px rgba(0,0,0,0.35))" }}
+          />
+        ))}
+        {item.label ? (
+          <>
+            <path
+              d={`M${ax0},${ay0} Q${ax0 + 40},${(ay0 + ay1) / 2} ${ax1},${ay1}`}
+              fill="none"
+              stroke={PALETTE.ink}
+              strokeWidth={9}
+              strokeLinecap="round"
+              strokeDasharray={600}
+              strokeDashoffset={600 * (1 - arrow)}
+            />
+            {arrow >= 1 && (
+              <path
+                d={`M${ax1 - 30},${ay1 + 22} L${ax1},${ay1} L${ax1 + 26},${ay1 + 30}`}
+                fill="none"
+                stroke={PALETTE.ink}
+                strokeWidth={9}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            )}
+          </>
+        ) : null}
+      </svg>
+      {item.label ? (
+        <div style={{ position: "absolute", top: labelY, left: 0, right: 0, textAlign: "center" }}>
+          <Highlight text={item.label} fontSize={70} delay={t0 + Math.round(0.35 * fps)} />
+        </div>
+      ) : null}
+    </AbsoluteFill>
+  );
+};
+
+/** Vox collage: nền giấy có hạt, các ảnh (cắt từ nguồn) dán băng keo, nghiêng, nhãn bút dạ. */
+export const CollageFx: React.FC<{ item: GraphicItem }> = ({ item }) => {
+  const frame = useCurrentFrame();
+  const { fps, durationInFrames } = useVideoConfig();
+  const stills = item.stills ?? [];
+  const fade = interpolate(frame, [0, 4, durationInFrames - 5, durationInFrames], [0, 1, 1, 0], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+  });
+  const layout = [
+    { top: 150, left: 90, rot: -5 },
+    { top: 980, left: 250, rot: 4 },
+  ];
+  return (
+    <AbsoluteFill style={{ opacity: fade, background: PALETTE.paper }}>
+      <svg width={1080} height={1920} style={{ position: "absolute", inset: 0, opacity: 0.35, mixBlendMode: "multiply" }}>
+        <filter id="grain">
+          <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves={2} seed={3} />
+          <feColorMatrix type="saturate" values="0" />
+        </filter>
+        <rect width="100%" height="100%" filter="url(#grain)" />
+      </svg>
+      {stills.slice(0, 2).map((st, i) => {
+        const at = Math.round(i * 0.45 * fps);
+        const p = spring({ frame: frame - at, fps, config: { damping: 14, stiffness: 150 } });
+        const L = layout[i];
+        return (
+          <div
+            key={i}
+            style={{
+              position: "absolute",
+              top: L.top,
+              left: L.left,
+              rotate: `${L.rot}deg`,
+              translate: `0px ${interpolate(p, [0, 1], [120, 0])}px`,
+              opacity: Math.min(1, p * 1.5),
+            }}
+          >
+            <div style={{ background: "#FFFFFF", padding: 16, paddingBottom: 18, boxShadow: "0 18px 36px rgba(0,0,0,0.28)" }}>
+              <Img src={staticFile(st.file)} style={{ width: 720, display: "block" }} />
+            </div>
+            <div
+              style={{
+                position: "absolute",
+                top: -26,
+                left: "40%",
+                width: 170,
+                height: 52,
+                rotate: `${-L.rot * 1.6}deg`,
+                background: "rgba(240, 228, 196, 0.85)",
+                boxShadow: "0 2px 4px rgba(0,0,0,0.12)",
+              }}
+            />
+            {st.label ? (
+              <div style={{ position: "absolute", bottom: -64, left: i ? "auto" : 10, right: i ? 10 : "auto" }}>
+                <Highlight text={st.label} fontSize={68} delay={at + Math.round(0.25 * fps)} rotate={i ? 2 : -3} />
+              </div>
+            ) : null}
+          </div>
+        );
+      })}
     </AbsoluteFill>
   );
 };

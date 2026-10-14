@@ -10,12 +10,12 @@ from vf.scenes import PieceVideo
 
 FRAME_H = 1920
 # cỡ chữ + đệm dọc (px) — khớp với remotion/src/Overlay.tsx
-FONT_PX = {"hook": 80, "commit": 72, "label": 54, "cta": 58, "plain": 60, "lower": 72, "tag": 50}
-PAD_PX = {"hook": 18, "commit": 22, "label": 16, "cta": 20, "plain": 14, "lower": 22, "tag": 12}
+FONT_PX = {"hook": 80, "commit": 72, "label": 54, "cta": 58, "plain": 60, "lower": 72, "tag": 50, "vox": 66}
+PAD_PX = {"hook": 18, "commit": 22, "label": 16, "cta": 20, "plain": 14, "lower": 22, "tag": 12, "vox": 16}
 SUB_PX = 38  # dòng phụ của thẻ lower — khớp remotion/src/Overlay.tsx
 MAX_TEXT_W = 900
-GRAPHIC_H_PX = {"light": 150, "whiten": 520, "teeth": 350, "counter": 1920}
-GRAPHIC_W_PX = {"light": 640, "whiten": 520, "teeth": 540, "counter": 1080}
+GRAPHIC_H_PX = {"light": 150, "whiten": 520, "teeth": 350, "counter": 1920, "callout": 1920, "collage": 1920}
+GRAPHIC_W_PX = {"light": 640, "whiten": 520, "teeth": 540, "counter": 1080, "callout": 1080, "collage": 1080}
 TOP_MIN, BOTTOM_MAX = 0.06, 0.80  # dưới 80 %: nút/caption của TikTok
 PREFERRED = {"top": 0.10, "center": 0.42, "bottom": 0.66}
 FACE_WEIGHT, BUSY_WEIGHT, PREF_WEIGHT, COLLIDE_WEIGHT = 6.0, 1.0, 0.25, 10.0

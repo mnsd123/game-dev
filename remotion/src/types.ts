@@ -6,7 +6,7 @@ export type OverlayItem = {
   start: number; // giây, theo timeline output
   end: number;
   position: "top" | "center" | "bottom";
-  style: "hook" | "commit" | "label" | "cta" | "plain" | "lower" | "tag";
+  style: "hook" | "commit" | "label" | "cta" | "plain" | "lower" | "tag" | "vox";
   animation: "pop" | "word_by_word" | "highlight" | "slide" | "none";
   emphasis: string[];
   y?: number | null; // mép trên, 0–1 chiều cao khung (Python chọn chỗ không che mặt)
@@ -14,13 +14,18 @@ export type OverlayItem = {
 };
 
 export type GraphicItem = {
-  kind: "light" | "whiten" | "teeth" | "counter";
+  kind: "light" | "whiten" | "teeth" | "counter" | "callout" | "collage";
   start: number;
   end: number;
   color: "blue" | "red";
   label: string;
   y?: number | null;
   split?: number; // teeth: tỉ lệ pha đèn xanh
+  cx?: number; // callout: tâm + bán kính vòng khoanh (tỉ lệ khung)
+  cy?: number;
+  rx?: number;
+  ry?: number;
+  stills?: { file: string; label: string }[]; // collage: ảnh trong public/
 };
 
 // bảng màu style guide (library/style-guide.md mục 8, đã duyệt 2026-10-14)
@@ -29,6 +34,10 @@ export const PALETTE = {
   plumCard: "rgba(58, 18, 48, 0.88)",
   pink: "#FF8DBA",
   keyBox: "#E0245E",
+  // Vox: bút dạ vàng, mực đỏ khoanh, giấy
+  marker: "#FFE14D",
+  ink: "#FF3B30",
+  paper: "#EFE6D6",
 };
 
 export type Colors = {

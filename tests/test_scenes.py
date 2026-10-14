@@ -88,3 +88,13 @@ def test_strip_text_keeps_overlays_inside_text_free_window():
                 overlays=[TextOverlay(text="ok", start=2.5, end=3.5), TextOverlay(text="chặn", start=0.2, end=1.0)])
     out = strip_text(v, {"t.mp4"}, {"t.mp4": [(20.0, 22.0)]})
     assert [o.text for o in out.overlays] == ["ok"]
+
+
+def test_zoom_focus_follows_keyframes():
+    from vf.edl import Effect
+    from vf.render import _focus_expr
+
+    e = Effect(kind="zoom_to", at=2.0, duration=1.0, keyframes=[(0, 0.6, 0.55), (1.0, 0.4, 0.5)])
+    ex = _focus_expr(e, 1)
+    assert ex.startswith("if(lt(t,2.000),0.600") and "0.400" in ex
+    assert _focus_expr(Effect(kind="zoom_to", at=0, focus=(0.3, 0.7)), 2) == "0.700"

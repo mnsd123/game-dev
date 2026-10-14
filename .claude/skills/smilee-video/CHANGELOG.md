@@ -1,5 +1,15 @@
 # Lịch sử skill smilee-video
 
+## v1.3 — 2026-10-14 (feedback lo-02 v4–v6: 2.5đ)
+
+| Feedback | Thay đổi |
+|---|---|
+| Đoạn nguồn đã có hình/video minh hoạ thì không cần thêm | Bỏ hàm răng vector, vầng sáng, thẻ đếm ngày trên cảnh đèn/bảng màu; chỉ thêm đồ hoạ ở đoạn trơn. |
+| Đoạn có chữ in sẵn thì không thêm chữ | Giữ `text_free`; bỏ thẻ đè lên đoạn có sticker. |
+| Chuyển cảnh nhanh; để trọn cảnh trước/sau gốc rồi mới thêm graphic | Cảnh BEFORE → AFTER gốc chạy trọn (54.48–59.15); ảnh ghép TRƯỚC/SAU đặt ngay sau. Cách dùng chỉ lấy phần đèn (bỏ chuỗi 0.8 s). |
+| Phong cách Vox | `zoom_to` (ống kính bám răng, `vf/track.py`), `callout` (khoanh tay → mũi tên → bút dạ), `collage` (giấy, băng keo, ảnh cắt từ nguồn), chữ `vox`. Style guide mục 10. |
+| Răng vàng: zoom vào răng hoặc chỉ vào rồi mới ghi chú | Zoom 1.6 bám răng + khoanh + mũi tên + nhãn "RĂNG Ố VÀNG", đúng thứ tự. |
+
 ## v1.2 — 2026-10-14 (feedback lo-02: v1 3đ, v2 3đ, v3 2đ)
 
 | Feedback | Thay đổi |
