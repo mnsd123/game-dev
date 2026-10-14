@@ -9,13 +9,13 @@ import textwrap
 from pathlib import Path
 
 from vf.captions import remap_words, words_to_ass
-from vf.creative import auto_sfx, lint_variant
+from vf.creative import auto_fix, auto_sfx, chapter_cuts, lint_variant, transition_graphics
+from vf.tokens import load_tokens, preset
 from vf.edl import Effect, TextOverlay, Variant, output_duration
 from vf.ffutil import run
 from vf.paths import BRAND_DIR, CAPTION_STYLE, LIBRARY
 from vf.probe import MediaInfo
 from vf.safezone import SAFE
-from vf.brief import FORBIDDEN_PATH, PENDING_PATH, read_phrase_list
 from vf.placement import FULL_FRAME
 from vf.qa import ClaimViolation, check_claims, check_safe_zone, measure_lufs
 from vf.scenes import PieceVideo, plan_piece_video
@@ -24,8 +24,7 @@ from vf.transcribe import Word
 W, H, FPS = 1080, 1920, 30
 SOURCE_TARGET_LUFS = -16.0
 BROLL_TARGET_LUFS = -26.0  # nguồn không có lời nói: chỉ giảm, không bao giờ tăng (tránh đẩy tiếng ồn nền)
-MUSIC_BELOW_VOICE_DB = 18.0
-SFX_GAIN_DB = -8.0  # SFX nằm dưới giọng nói, chỉ "điểm" nhịp
+WHIP_ZOOM, WHIP_S, WHIP_BLUR_S = 0.12, 0.17, 0.1  # chuyển cảnh whip: zoom 1.12 → 1 trong ~5 khung + mờ 0,1 s
 JOIN_FADE_S = 0.04  # nửa của 0.08 s mỗi bên chỗ nối hai nguồn khác nhau
 DECLICK_S = 0.01
 FONT_EXTS = (".ttf", ".otf")
@@ -41,8 +40,17 @@ def _filter_path(p: Path) -> str:
 
 
 def find_font(brand: Path) -> Path:
-    """Font brand (file .ttf/.otf đầu tiên trong library/brand), nếu chưa có thì dùng font hệ thống có dấu tiếng Việt."""
+    """Font brand theo tokens.json (fonts.main), rồi file .ttf/.otf đầu tiên trong library/brand,
+    nếu chưa có thì dùng font hệ thống có dấu tiếng Việt."""
+    from vf.tokens import font_file
+
     if brand and Path(brand).is_dir():
+        try:
+            chosen = font_file("main", brand)
+        except FileNotFoundError:
+            chosen = None
+        if chosen:
+            return chosen
         fonts = sorted(p for p in Path(brand).rglob("*") if p.suffix.lower() in FONT_EXTS)
         if fonts:
             return fonts[0]
@@ -212,6 +220,15 @@ def build_ffmpeg_cmd(
     fc: list[str] = []
     n = len(pieces)
     videos = videos or [PieceVideo() for _ in pieces]
+    # chuyển cảnh ở ranh giới chương theo preset (tokens.json): whip = zoom-settle + mờ ngắn; paper vẽ ở Remotion
+    whip_at = set()
+    if preset(v.preset).get("transition") == "whip":
+        starts, acc = [], 0.0
+        for p in pieces:
+            starts.append(acc)
+            acc += p.duration
+        cut_ts = chapter_cuts(v)
+        whip_at = {i for i, t in enumerate(starts) if any(abs(t - c) < 1e-3 for c in cut_ts)}
     for i, (p, pv) in enumerate(zip(pieces, videos)):
         info = infos[p.source]
         fc += _fit(f"[{i}:v]setpts=PTS-STARTPTS,fps={FPS},", f"[vf{i}]", info, i)
@@ -224,6 +241,11 @@ def build_ffmpeg_cmd(
         if pv.zoom != 1.0:
             zw, zh = 2 * round(W * pv.zoom / 2), 2 * round(H * pv.zoom / 2)
             chain.append(f"scale={zw}:{zh},crop={W}:{H},setsar=1")
+        if i in whip_at:
+            zw = f"2*trunc({W}*(1+{WHIP_ZOOM}*max(0\\,1-t/{WHIP_S}))/2)"
+            zh = f"2*trunc({H}*(1+{WHIP_ZOOM}*max(0\\,1-t/{WHIP_S}))/2)"
+            chain.append(f"scale=w='{zw}':h='{zh}':eval=frame,crop={W}:{H},setsar=1,"
+                         f"boxblur=10:1:enable='lt(t\\,{WHIP_BLUR_S})'")
         chain.append(f"trim=duration={p.duration:.3f},format=yuv420p")
         fc.append(f"[vf{i}]" + ",".join(chain) + f"[v{i}]")
         fade_in = JOIN_FADE_S if i > 0 and pieces[i - 1].source != p.source else DECLICK_S
@@ -256,19 +278,26 @@ def build_ffmpeg_cmd(
         fc.append(vchain[0] + "," + ",".join(vchain[1:]) + "[vout]")
     else:
         fc.append("[vc]" + ",".join(vchain) + "[vout]")
+    audio = load_tokens()["audio"]
     mix = ["[ac]"]
     if v.music:
         cmd += ["-stream_loop", "-1", "-i", str(resolve_asset(v.music, brand))]
         m_lufs = measure_lufs(resolve_asset(v.music, brand))
-        m_gain = 0.0 if m_lufs < -60 else SOURCE_TARGET_LUFS - MUSIC_BELOW_VOICE_DB - m_lufs
+        # nhạc nằm dưới giọng music_gain_db, và tự hạ thêm khi có giọng (sidechain, khoá = giọng)
+        m_gain = 0.0 if m_lufs < -60 else SOURCE_TARGET_LUFS + audio["music_gain_db"] - m_lufs
+        d = audio["duck"]
+        fc.append("[ac]asplit=2[acv][key]")
+        mix = ["[acv]"]
         fc.append(f"[{extra}:a]aresample=48000,aformat=channel_layouts=stereo,atrim=duration={total:.3f},"
-                  f"volume={m_gain:.2f}dB,afade=t=out:st={max(0.0, total - 0.5):.3f}:d=0.5[mus]")
+                  f"volume={m_gain:.2f}dB,afade=t=out:st={max(0.0, total - 0.5):.3f}:d=0.5[mus0]")
+        fc.append(f"[mus0][key]sidechaincompress=threshold={d['threshold']}:ratio={d['ratio']}"
+                  f":attack={d['attack']}:release={d['release']}[mus]")
         mix.append("[mus]")
         extra += 1
     for k, e in enumerate(x for x in v.effects if x.kind == "sfx" and x.asset):
         cmd += ["-i", str(resolve_asset(e.asset, brand))]
         ms = int(e.at * 1000)
-        fc.append(f"[{extra}:a]aresample=48000,aformat=channel_layouts=stereo,volume={SFX_GAIN_DB}dB,"
+        fc.append(f"[{extra}:a]aresample=48000,aformat=channel_layouts=stereo,volume={audio['sfx_gain_db']}dB,"
                   f"adelay={ms}|{ms}[sfx{k}]")
         mix.append(f"[sfx{k}]")
         extra += 1
@@ -335,13 +364,13 @@ def render_variant(
 ) -> Path:
     """`creative` (nếu truyền): nhận ghi chú sáng tạo (vf/creative.py), không chặn render.
     `notes` (nếu truyền): nhận ghi chú vùng an toàn (chữ/hình bị kéo vào, lấn vùng giao diện TikTok).
-    Kiểm tra claim trên mọi overlay + phụ đề TRƯỚC khi render; vi phạm → ClaimViolation, không tạo file.
+    `forbidden`: cụm cấm riêng của lô (brief.forbidden) — chữ trên màn hình chứa cụm đó → ClaimViolation, không tạo file.
+    Không còn kiểm forbidden.txt / claims_pending.txt (người dùng chốt 2026-10-14: không chặn claim).
     Overlay = chữ trong edl + cam kết tự phát hiện trong lời nói (library/commitments.txt).
     motion=None: dùng Remotion nếu đã cài, không thì vẽ chữ tĩnh bằng drawtext."""
     from vf.motion import plan_overlays, remotion_available, render_overlay, strip_text
 
-    if forbidden is None:
-        forbidden = read_phrase_list(FORBIDDEN_PATH) + read_phrase_list(PENDING_PATH)
+    forbidden = forbidden or []  # chỉ cụm cấm riêng của lô (brief.forbidden); không dùng forbidden.txt
     v = v.model_copy(update={"overlays": plan_overlays(v, words_by_source or {})})
     v = strip_text(v, text_sources or set(), text_free)
     words = remap_words(words_by_source or {}, v.pieces()) if v.captions else []
@@ -365,9 +394,11 @@ def render_variant(
     speech = spoken or None  # chưa có transcript nào → không đoán, coi mọi nguồn là có lời nói
     videos = plan_piece_video(v.pieces(), cuts_by_source or {})
     v = _tracked(v, sources)
+    v, fixes = auto_fix(v)  # giữ chữ đủ lâu để đọc
+    v = v.model_copy(update={"graphics": v.graphics + transition_graphics(v)})
     v = v.model_copy(update={"effects": v.effects + auto_sfx(v, Path(brand) / "sfx")})
     if creative is not None:
-        creative += lint_variant(v)
+        creative += fixes + lint_variant(v)
     overlay_path = None
     notes = notes if notes is not None else []
     if v.overlays or v.graphics:

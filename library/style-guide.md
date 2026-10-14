@@ -1,155 +1,114 @@
-# Style guide Smilee
+# Style guide Smilee — v2
 
-Trạng thái: ĐÃ DUYỆT 2026-10-14 — cập nhật Vox 2026-10-14 (feedback lô lo-02); v1.4 2026-10-14: vùng an toàn, âm thanh, preset, typography theo xu hướng TikTok 2026 (mục 7, 11–14)
+Trạng thái: ĐÃ DUYỆT 2026-10-14 — v2 gộp từ bản đóng gói `smilee-video-SKILL.md` (Claude chat) và v1.4 trong repo, theo các quyết định của người dùng ngày 2026-10-14.
+Nguồn: đánh giá lô 01–02 (điểm 2–3/5), video mẫu trong `EDIT/video mẫu tham khảo/` (chỉ học kỹ thuật), nghiên cứu xu hướng quảng cáo TikTok 2026.
+Thông số máy đọc: `library/brand/tokens.json` (một nguồn duy nhất). File này là luật để viết `edl.json`.
 
-Video đã xem (thư mục `EDIT/video mẫu tham khảo/`, chỉ học kỹ thuật):
-- **A** `snaptik.vn_7690505641718271284.mp4` — 33.4 s, 576x1024. Bản dựng lại clip KOL hộp quà 20/10 (cùng nguồn với lo-01).
-- **B** `snaptik.vn_7694846295957081365.mp4` — 45.0 s, 576x1024. Video giải thích dạng motion graphic (dựng video bằng AI).
+## 1. Nguyên tắc gốc
 
-Dò cắt cảnh: ffmpeg `scdet`, ngưỡng 10. Nhạc/SFX: chưa phân tích.
+1. **Một hệ chữ cho cả video.** Mỗi biến thể đúng 1 `preset` (mục 6). Không trộn hộp tím, chữ Vox bút dạ và sticker trong cùng một video.
+2. **Đủ ý trước, đẹp sau.** Video phải có đủ: nỗi đau/lợi ích, hiệu quả, bằng chứng trước/sau, nhanh chóng, tiết kiệm, CTA (mục 2). Thiếu ý thì kéo dài video, không cắt cho ngắn.
+3. **Thật hơn bóng bẩy.** Giữ cảnh thật, giọng thật. Đồ hoạ để giải thích, không để làm đẹp kết quả.
+4. **Không bao giờ chỉnh màu răng thật** trong footage. Hiệu ứng "vàng → trắng" chỉ dùng hình minh hoạ (`whiten`, `teeth`). Không bịa before/after, review, số liệu không có trong tư liệu.
+5. **Cam kết và lợi ích càng nổi bật càng tốt.** Không chặn claim, không thêm disclaimer/nhãn quảng cáo (người dùng chốt 2026-10-14). 3 cam kết (trắng sau 5–7 ngày, bật 3–4 tone, trắng như sứ) tự highlight khi người nói nói ra.
+6. **Nội dung có sẵn trong source gốc giữ nguyên** (chữ in sẵn, sticker, phụ đề KOL): không dời, không cắt, không né đoạn vì nó.
 
-## 1. Nhịp cắt
+## 2. Cấu trúc và độ dài
 
-| Video | Số lần cắt | Giây/cảnh | Ghi chú |
-|---|---|---|---|
-| A | 9 | ~3.3 s (2.3–3.8 s) | Không cảnh nào < 1.3 s |
-| B | 2 | ~15 s | Cảnh dài, chuyển động nằm ở motion graphic |
-| Nguồn KOL lo-02 | 67 | ~2.6 s, nhiều đoạn 0.6 s | Nhanh hơn mẫu nhiều → phải bỏ các chuỗi dựng nhanh |
+- Độ dài ưu tiên **45 s – 1 phút 40** tuỳ source; source dài, đủ thông tin thì được ±10 %. Brief/lệnh của người dùng ghi đè.
+- Bản cắt ngắn (tuỳ chọn): brief `cutdown_seconds` + `"cutdown_of"` trong edl.
+- Chương (`chapter` trên mỗi đoạn): `hook → pain → benefit → result → proof → speed → saving → cta` (thứ tự linh hoạt; `problem` = pain, `solution` = benefit). Lint nhắc chương còn thiếu.
+- **Khung hình đầu là hình mạnh nhất** (cận răng, đèn đang sáng, hộp quà mở). Chữ/đồ hoạ đầu tiên ≤ 0,3 s (trừ khi nguồn đã có chữ in sẵn ở hook). Hook ≤ 3 s. Không mở đầu bằng giá (lo-02 v3: 2đ).
+- CTA hai lần: CTA mềm ở 60–85 % thời lượng + CTA/`end_card` trong 3 s cuối.
 
-Quy tắc: mỗi cảnh trong output **≥ 1.2 s, nhắm 2–4 s**. Không giữ chuỗi cảnh < 1 s của nguồn (ví dụ nhật ký 7 ngày); thay bằng một cảnh dài + motion graphic đếm ngày.
+## 3. Ngữ pháp cắt dựng
 
-## 2. Hook (giây 0–3)
-
-- A: mở bằng hành động (mở hộp quà) + cảnh cận răng/sản phẩm, chữ chưa xuất hiện ngay.
-- B: mở bằng câu ngắn chữ nghiêng nhỏ ở trên + **cụm then chốt viết hoa trong ô màu** ("MẤT CẢ BUỔI", "CHỈ CẦN NÓI"), xuất hiện ở giây 1.
-- Áp dụng: hook = 1 dòng nhỏ dẫn + 2–4 từ viết hoa trong ô màu, ở 1/4 trên khung.
-
-## 3. Chuyển cảnh
-
-- Chủ yếu **cắt thẳng**; chữ/thẻ đổi theo cảnh (A).
-- **Thẻ toàn màn hình** 1–1.5 s để chuyển ý (A giây 11: nền tím mận + hình răng + "NGẢ VÀNG → TỰ TIN KHOE RĂNG"; B: nền đen/đỏ đô + tiêu đề).
-- Không flash trắng, không rung. `zoom_punch` nhẹ ở chỗ nhấn là đủ.
-
-## 4. Chữ trên hình
-
-**Thẻ chữ dưới (A, kiểu chính):** hộp bo góc nền tím mận đậm mờ (~#3A1230, 85 %), dòng 1 viết hoa đậm màu hồng (~#FF8DBA), dòng 2 chữ thường trắng nhỏ (~45 % cỡ dòng 1). Đặt khoảng 45–60 % chiều cao, mép dưới thẻ **không quá 65.6 %** (vùng an toàn, mục 13), không che miệng/răng. 2–5 từ dòng 1, ≤ 7 từ dòng 2.
-Ví dụ cấu trúc: "MẢNG BÁM NGẢ VÀNG / thấy rõ luôn", "SAU 7 NGÀY / lên tông thấy rõ luôn".
-
-**Ô nhấn từ khoá (B):** 2–4 từ viết hoa chữ trắng trên ô đỏ/hồng đặc, nằm ngay dưới một dòng dẫn chữ nghiêng nhỏ.
-
-**Phụ đề động (B):** 2–4 từ một lúc, chữ trắng đậm ở 1/5 dưới, **một từ khoá trong ô màu**. Chỉ dùng khi nguồn không có phụ đề in sẵn.
-
-Font: không chân, rất đậm (Montserrat ExtraBold đang dùng là hợp). B có dùng chữ có chân cho tiêu đề — không bắt buộc.
-
-## 5. Motion graphic / minh hoạ
-
-- **Thanh đèn (A 13–17 s):** hai thẻ xếp chồng: "10 PHÚT" chữ xanh + "ánh sáng xanh / làm trắng răng"; "5 PHÚT" chữ đỏ + "ánh sáng đỏ / làm dịu nướu"; **thanh tiến độ** chạy xanh rồi đỏ bên dưới.
-- **Ảnh chèn nghiêng kiểu polaroid (A 7–8 s):** 1–2 ảnh nhỏ nghiêng ±6°, viền trắng, chú thích hồng ("MẢNG BÁM · NGẢ VÀNG"). Chỉ dùng ảnh thật lấy từ chính nguồn.
-- **Nhãn trước/sau (A 18–21 s):** viên thuốc hồng "TRƯỚC" / "SAU ✓" + ô hình nhỏ góc trên (picture-in-picture) cảnh trước, cảnh chính là sau.
-- **Bộ đếm (B 7–11 s):** số chạy tăng kèm icon ("0,4 giờ → 4,0 giờ"). Áp dụng: "Ngày 1 → Ngày 7".
-- **Thẻ minh hoạ toàn màn hình (A 11 s):** nền tím mận, hình vector răng, chữ hồng.
-- Hàm răng vector (đèn xanh quét làm răng vàng → trắng, đèn đỏ dịu nướu) — pipeline đã có (`graphics.kind = "teeth"`), cần đổi màu sang bảng màu dưới.
-
-## 6. Hiệu ứng lặp lại
-
-Thẻ chữ dưới xuất hiện gần như mỗi cảnh ở A (cùng một kiểu, đổi nội dung). Thẻ toàn màn hình ở chỗ chuyển ý và kết (CTA).
-
-## 7. Nhạc / SFX
-
-TikTok là nền tảng **bật tiếng**: âm thanh là thứ giữ chân đầu tiên, không phải lớp thêm sau cùng. Video không nhạc, không SFX là lỗi (QA ghi `âm thanh:`).
-
-- **SFX tự động** (`vf/creative.py`, tắt bằng `"sfx_auto": false`): file trong `library/brand/sfx/`, đặt tên đúng vai trò. Thiếu file nào thì bỏ qua cue đó. Mức −8 dB, nằm dưới giọng.
-
-| File | Gắn vào |
+| Luật | Giá trị |
 |---|---|
-| `whoosh` | `zoom_to`, `zoom_punch` |
-| `marker` | `callout` (tiếng bút dạ) |
-| `paper` | `collage` |
-| `tick` | `counter`, `shade` |
-| `swipe` | `wipe` |
-| `shimmer` | `teeth`, `whiten` (lấp lánh khi răng trắng) |
-| `pop` | thẻ `tag`, `cta`, `commit` |
+| Cảnh ngắn nhất | **1,2 s**, nhắm 2–4 s (feedback lo-02). Chuỗi cắt nhanh có chủ đích: `rapid: true` |
+| Giữ chữ tối thiểu | `max(1,2 s; 0,6 + 0,25 × số từ)` — render tự kéo dài |
+| Không cắt cảnh trong | 0,4 s sau khi chữ vừa hiện |
+| Cảnh "tiền" (trước/sau, bật đèn, mở hộp) | `protect: true`, ≥ 2,5 s, để cảnh gốc chạy trọn; không đặt chữ giữa khung đè miệng/răng |
+| Đổi nhịp | mỗi ≤ 4 s một lần: cắt, zoom, đồ hoạ, chữ |
+| Chuyển cảnh | chỉ ở ranh giới chương, theo preset: `whip` (zoom 1.12 → 1 + mờ 0,1 s), `paper` (tờ giấy lướt ngang), `cut`. **Không flash trắng** (lo-01: "trông như lỗi hình"). Trong chương: cắt thẳng |
+| Chữ có sẵn trong nguồn | nguồn vào `text_sources`; chỉ thêm chữ trong các khoảng `text_free` (giờ nguồn không có chữ in sẵn). Nguồn đã giải thích đủ thì **không thêm** |
+| Đoạn nguồn đã tự minh hoạ (đèn sáng, bảng màu, khoanh sẵn) | để nguyên, không chồng đồ hoạ cùng ý |
+| Zoom vào chi tiết | zoom (`zoom_to`, bám răng) → khoanh → mũi tên → nhãn, đúng thứ tự |
+| Không dùng | đoạn có clip của người sáng tạo/người nổi tiếng khác chèn trong nguồn |
 
-- **Nhạc nền**: chỉ nhạc có giấy phép trong `library/brand/` (render tự hạ −18 dB dưới giọng). Nhạc trend/nhạc thương mại thì để trống `music` và gắn nhạc từ **Commercial Music Library** ngay trong TikTok/Ads Manager — không lấy "âm thanh gốc" của người khác.
-- **ASMR sản phẩm**: giữ tiếng thật của nguồn khi bấm máy, bôi gel, mở hộp (đừng cắt mất).
+## 4. Typography
 
-## 8. Bảng màu
+- Font chính theo `tokens.fonts.main`: **Be Vietnam Pro** (Black/ExtraBold, thiết kế cho tiếng Việt) khi có file trong `library/brand/fonts/`, chưa có thì Montserrat ExtraBold. Chừa ~22 % cỡ chữ phía trên dòng cho dấu chồng (Ề, Ẫ, Ỗ).
+- Thang cỡ chữ (px, 1080×1920): hook 92 · claim 84 · cta 76 · label 64 · dòng phụ 38–44 · note 32 · kinetic 150.
+- Nhãn tối đa 2 tầng: dòng chính ≤ 6 từ, dòng phụ ≤ 8 từ, tối đa 3 dòng. ≤ 3,5 từ/giây, tối đa 2 khối chữ cùng lúc.
+- Nhấn màu trong chữ: `*từ*` = accent (hồng/đỏ marker theo preset), `[từ]` = accent2 (xanh). Tối đa 2 cụm nhấn mỗi nhãn. Không có dấu nhấn → cả dòng chính màu accent (thẻ `lower`).
+- Số luôn được nhấn: **10 PHÚT** (xanh – đèn xanh), **5 PHÚT** (đỏ – đèn đỏ), **NGÀY 7**, **3–4 TONE**.
+- Chỉ từ khoá chuyển động (`highlight` + `emphasis`, `pop`); đặt đúng lúc người nói nói ra từ đó.
 
-| Vai trò | Màu |
-|---|---|
-| Nền thẻ, thẻ toàn màn hình | tím mận #3A1230 (A) / đỏ đô #6B1A26 (B) |
-| Chữ nhấn | hồng #FF8DBA |
-| Ô từ khoá | đỏ hồng #E0245E, chữ trắng |
-| Đèn xanh / đèn đỏ | #2F7BFF / #FF3B4E |
-| Chữ phụ | trắng |
+## 5. Vùng an toàn (chỉ cho phần thêm vào)
 
-## 9. Nên bắt chước / Không bắt chước
+Khung 1080×1920 (`tokens.safe_zone`, `vf/safezone.py`): chừa **trên 240 px, dưới 660 px, trái/phải 120 px, và phải 300 px khi y > 840** (cột nút avatar/tim/bình luận/chia sẻ).
 
-**Nên:** nhịp 2–4 s/cảnh; thẻ chữ hai dòng nền tím mận; ô từ khoá; thanh đèn có tiến độ; nhãn TRƯỚC/SAU; bộ đếm; thẻ toàn màn hình khi chuyển ý.
+- Pipeline tự đặt `y` và tâm ngang `xc`: nửa trên căn giữa, nửa dưới lệch trái trong x 120–780; hộp chữ tự hẹp lại. `y` ghi tay ngoài vùng an toàn và vòng khoanh bị kéo vào trong (QA ghi chú).
+- Remotion nhận `safe`: thẻ đếm ngày, ảnh ghép, thanh gạt, kinetic hook, nhãn khoanh đều bố cục trong vùng an toàn.
+- QA đọc kênh alpha lớp thêm vào: chỗ đặc (≥ 85 %) lấn vùng cấm → `vùng an toàn: …`, biến thể **CẦN XEM**. `*_sheet.png` kẻ viền đỏ vùng an toàn. Được tràn mép: vầng sáng, bóng đổ, hạt sáng mờ, nền phủ kín của thẻ toàn màn hình.
 
-**Không:** hình, nhạc, giọng, câu chữ nguyên văn của A và B; thương hiệu/giao diện phần mềm trong B; "SĂN SALE / VÀO LIVE" (A) khi `goal` là awareness; mọi cụm trong `forbidden.txt` và `claims_pending.txt` (ví dụ "cấp tốc", "đảm bảo").
+## 6. Preset (8)
 
-## 10. Phong cách Vox (bổ sung 2026-10-14, feedback lo-02)
+Mỗi biến thể đúng 1 preset; các biến thể trong lô khác nhau rõ về **kiểu hook hoặc preset** (không chỉ khác chữ). Bảng màu, chuyển cảnh, auto SFX của từng preset ở `tokens.presets`.
 
-Nguyên tắc: **chỉ thêm đồ hoạ ở đoạn nguồn "trơn"** (không có chữ in sẵn, không có sticker/khoanh/hình minh hoạ sẵn). Đoạn nguồn đã tự minh hoạ (đèn sáng, bảng màu, khoanh đỏ có sẵn) → để nguyên.
+| Preset | Khi dùng | Chữ | Chuyển cảnh | Âm thanh |
+|---|---|---|---|---|
+| `pink` (mặc định) | mọi bản thương hiệu | thẻ `lower` tím mận 2 tầng, accent hồng/xanh | whip | pop, whoosh, click |
+| `vox` | giải thích, nỗi đau, "vì sao" | chữ `vox` đen trên bút dạ vàng, khoanh đỏ, ảnh ghép giấy | paper | giấy, bút dạ |
+| `kinetic` | hook mạnh | như pink + `kinetic` 1–1,5 s đầu | whip | slam theo từng cụm |
+| `proof` | kết quả trước | `wipe`/`collage` trước/sau, `counter`, `shade` | whip | tick, ding |
+| `ugc` | bản số lượng GMV Max | chữ `plain` trắng viền đen, không hộp | cut | không auto SFX |
+| `gift` | 20.10, Tết, Valentine | thẻ hồng đậm | whip | pop, ding |
+| `routine` | quy trình 15 phút: gel → đèn xanh → đèn đỏ | thẻ `lower` accent xanh, `light_timer`, `teeth` | cut | click, giữ tiếng ASMR thật |
+| `reply` | trả lời câu hỏi khán giả (xử lý phản đối) | thẻ trắng chữ mực, câu hỏi ở hook | cut | pop |
 
-- **Zoom ống kính** (`effects.kind = "zoom_to"`, `zoom` 1.4–1.7, `track: "teeth"` để bám theo răng): đẩy chậm 0.35 s vào chi tiết cần nói (răng vàng), giữ tới hết cảnh.
-- **Khoanh tay → mũi tên → ghi chú** (`graphics.kind = "callout"`): vòng đỏ vẽ tay quanh răng, mũi tên, rồi mới hiện nhãn chữ đen trên **vệt bút dạ vàng** (#FFE14D). Thứ tự bắt buộc: zoom → khoanh → mũi tên → chữ.
-- **Ảnh ghép giấy** (`graphics.kind = "collage"`): nền giấy kem có hạt, 1–2 ảnh cắt từ chính nguồn, viền trắng, băng keo, nghiêng ±4–5°, nhãn bút dạ ("TRƯỚC" / "SAU 7 NGÀY"). Đặt **sau** cảnh trước/sau gốc (để cảnh gốc chạy trọn), trên một đoạn nói chuyện trơn.
-- **Chữ Vox** (`style: "vox"`): dòng chính viết hoa đen trên vệt bút dạ vàng quét trái → phải, dòng phụ trên dải giấy trắng. Dùng cho ý bổ sung (gel tiết kiệm, đắp mặt nạ). CTA cuối vẫn dùng thẻ tím mận `lower`.
-- **Không bỏ** hàm răng vector (`teeth`), vầng sáng đèn (`light`), thẻ đếm ngày (`counter`) — người dùng muốn giữ (2026-10-14). Dùng khi hợp bối cảnh: đoạn nói về đèn xanh/đỏ mà còn chỗ trống không che mặt, không đè chữ/hình minh hoạ có sẵn (ví dụ phía trên đầu trong cảnh trung, hoặc nguồn không quay cảnh đèn). Chỉ tránh đặt chúng chồng lên phần nguồn đã tự minh hoạ cùng ý đó.
+Preset cũ của v1.4: `result_rewind` → `proof`, `beat` → `kinetic` (edl tự đổi). Preset nào thắng được học dần qua `vf learn --write` (theo preset × hook × độ dài) — điều chỉnh bảng này khi có bằng chứng.
 
+## 7. Thư viện đồ hoạ
 
-## 11. Preset dựng (v1.4) — mỗi biến thể MỘT preset, không trộn
-
-Ghi `"preset"` trong edl. Các biến thể trong một lô nên khác preset hoặc khác hook hình, để mỗi bản là một phương án test thật.
-
-| Preset | Dựng thế nào | Đồ hoạ dùng | Hợp với |
-|---|---|---|---|
-| `ugc` | Gần như nguồn gốc, cắt gọn, cận sản phẩm ở giữa video | 2–3 ô từ khoá, `cta` | Spark Ads, chuyển đổi |
-| `result_rewind` | 0–2 s: cận nụ cười "sau" → `wipe` hoặc chữ "7 ngày trước…" → hành trình | `wipe`, `shade`, `counter` | hook `result_first` |
-| `vox` | Zoom bám răng, khoanh, ảnh ghép giấy, nhịp chậm | `zoom_to`, `callout`, `collage`, chữ `vox` | giáo dục, nhận diện |
-| `routine` | Quy trình 15 phút: gel → đèn xanh → đèn đỏ, giữ tiếng ASMR | `teeth`, `light`, `counter` | lợi ích "tại nhà, 15 phút" |
-| `reply` | Mở bằng câu hỏi khán giả ("Dùng có ê buốt không?") rồi KOL trả lời | chữ `hook` dạng câu hỏi | xử lý phản đối |
-| `beat` | Bản ngắn 15–20 s, chữ đập theo nhịp nhạc | ô từ khoá `pop` | test hook nhanh |
-
-`reply`: chỉ dùng câu hỏi/bình luận thật (khách đồng ý) hoặc ghi "Nhiều bạn hỏi:"; không bịa bình luận (hồ sơ sản phẩm cấm review tự bịa).
-
-**Thời lượng**: bản chính theo brief; khi brief có `cutdown_seconds` (gợi ý 20–25 s) thì thêm bản ngắn với `"cutdown_of": "<id bản chính>"`. **CTA**: một CTA mềm ở 60–85 % thời lượng + CTA cuối (QA nhắc nếu chỉ có ở cuối).
-
-## 12. Hệ chữ (typography)
-
-- **Tối đa 2–3 kiểu chữ**: Montserrat ExtraBold (chữ chính) + chữ Vox (bút dạ). Font viết tay cho ghi chú Vox: chưa có — cần người dùng duyệt file OFL có đủ dấu tiếng Việt.
-- **Phân màu theo vai trò, không trộn trong một cảnh**: tím mận/hồng = lợi ích, CTA; vàng bút dạ/đỏ mực = chú thích Vox; ô đỏ hồng = từ khoá.
-- **Chỉ từ khoá chuyển động** (`highlight` có `emphasis`, `pop`); cả câu đứng yên. Đặt từ khoá đúng lúc người nói nói ra từ đó (mốc từ trong transcript).
-- **Hook có chữ trước 0.5 s**, 1 dòng ≤ 6 từ (trừ khi nguồn đã có chữ in sẵn ở hook).
-- **Đọc kịp**: ≤ 3.5 từ/giây mỗi overlay; tối đa 2 khối chữ cùng lúc.
-
-## 13. Vùng an toàn TikTok (bắt buộc)
-
-**Chỉ áp dụng cho phần thêm vào** (chữ, thẻ, nhãn, graphic, phụ đề do pipeline tạo). Nội dung có sẵn trong source gốc (chữ in sẵn, sticker, phụ đề KOL) giữ nguyên, không dời, không cắt, không né đoạn vì nó (người dùng chốt 2026-10-14).
-
-Khung 1080×1920. Chữ, nhãn, thẻ, hình minh hoạ thêm vào **không được** nằm trong:
-
-| Vùng | Kích thước | Bị che bởi |
+| Thành phần (skill v2) | Trong edl | Ghi chú |
 |---|---|---|
-| Trên | 240 px (12.5 %) | thanh tab, nhãn "Được tài trợ" |
-| Dưới | 660 px (từ 65.6 % xuống) | tên tài khoản, caption, nhạc, nút CTA quảng cáo |
-| Hai bên | 120 px mỗi bên | mép màn hình |
-| Cột nút phải | rộng 180 px, từ y = 840 px (43.75 %) xuống | avatar, tim, bình luận, lưu, chia sẻ |
+| label | `overlays` (`lower`, `tag`, `hook`, `plain`, `cta`, `commit`, `vox`) | chữ theo preset |
+| light_timer | `graphics.kind = "light_timer"`, `rows` | 2 hàng 10′ xanh / 5′ đỏ, hàng 2 `at` đúng lúc chuyển đèn. Kèm `light` nếu muốn vầng sáng |
+| tooth_morph | `whiten` | icon răng vàng → trắng, ghi "Hình minh họa" |
+| (hàm răng vector) | `teeth` | đèn xanh quét làm răng trắng dần, đèn đỏ dịu nướu — người dùng muốn giữ |
+| draw_circle | `effects.zoom_to` (track teeth) + `graphics.callout` | zoom → khoanh → mũi tên → nhãn |
+| polaroid | `collage` | 1–2 ảnh thật cắt từ nguồn, băng keo, nền giấy |
+| day_counter | `counter` | NGÀY 1 → 7, 1–1,5 s |
+| kinetic_hook | `kinetic`, `words` | cụm `*như này*` tô màu nhấn |
+| end_card | `end_card`, `label`, `sub`, `live` | CTA cuối trong vùng an toàn |
+| (thang màu) | `shade` | chỉ dùng số mức người nói nói ra |
+| (thanh gạt trước/sau) | `wipe`, 2 `stills` | từ cảnh trước/sau thật |
+| (chuyển cảnh giấy) | `paper_swipe` | render tự thêm ở ranh giới chương cho preset vox |
 
-Số liệu từ file template safe zone của TikTok (theo Socialync), lấy bộ chặt nhất. Một nguồn số liệu duy nhất: `vf/safezone.py`.
+Gợi ý ghép:
+- Cảnh đèn xanh/đỏ → `light_timer` (hoặc `teeth` + `light`). Không chồng nếu nguồn đã có chữ "ÁNH SÁNG XANH".
+- Nỗi đau răng vàng → `zoom_to` bám răng → `callout` → nhãn.
+- Kết quả → `wipe` hoặc `collage` sau khi cảnh trước/sau gốc chạy trọn; `shade` khi người nói nói số mức.
+- Ngay sau cảnh dùng máy → `whiten`/`teeth` 1,5–2 s.
 
-Pipeline tự đảm bảo:
-- `vf/placement.py` chỉ chọn `y` trong vùng an toàn; hộp chữ thu hẹp (tối đa ~696 px) khi chạm hàng cột nút; `y` ghi tay trong edl bị kéo vào trong (QA ghi chú); vòng khoanh `callout` bị kéo vào trong.
-- Remotion nhận `safe`: thẻ đếm ngày căn giữa vùng an toàn, ảnh ghép/`wipe` bố cục trong vùng an toàn, nhãn khoanh tự lên trên vòng khi dưới không đủ chỗ, chữ Vox tự xuống dòng.
-- QA đọc kênh alpha **lớp chữ/hình thêm vào** (không đọc hình gốc): chỗ nào đặc (≥ 85 %) lấn vùng cấm → ghi `vùng an toàn: …` và biến thể thành **CẦN XEM**. Ảnh `*_sheet.png` kẻ viền đỏ quanh vùng an toàn.
-- Được phép tràn mép: vầng sáng đèn, bóng đổ, hạt sáng mờ (< 85 %), nền phủ kín của thẻ toàn màn hình.
+**Chưa có (cần làm thêm code):** chữ nằm sau người (tách nền), dừng hình + viền trắng cut-out, sản phẩm tách nền bay vào ở CTA, cột so sánh 8 triệu vs 800k, phụ đề từng từ đổi màu theo preset, chữ có chân nghiêng (Lora) cho dòng dẫn Vox.
 
-## 14. Motion graphic theo xu hướng 2026
+## 8. Âm thanh
 
-**Đã có trong pipeline (v1.4):**
-- `shade` — thang màu răng, con trỏ trượt `from_shade` → `to_shade`. Chỉ dùng số người nói nói ra (lo-02: "tầng 9–10 xuống 6–5"); `label` ghi nguồn ("theo trải nghiệm của Giao").
-- `wipe` — thanh gạt trước/sau toàn màn hình, 2 `stills` cắt từ cảnh trước/sau **thật** của nguồn (cùng điều kiện ánh sáng). Đặt sau cảnh trước/sau gốc, như `collage`.
+- Giọng −14 LUFS (loudnorm cuối). Nhạc nền dưới giọng 20 dB và tự hạ thêm khi có giọng (sidechain). Nhạc trend: để trống `music`, gắn nhạc Commercial Music Library trên TikTok.
+- SFX tự gắn theo sự kiện (`tokens.auto_sfx`): chữ hiện → pop, ranh giới chương/zoom → whoosh, khoanh → marker, ảnh ghép/giấy → paper, đếm ngày/thang màu → tick, light_timer → click, tooth_morph → ding, kinetic → slam, thanh gạt → swipe, hàm răng → shimmer, end_card → pop. Preset `ugc` không auto SFX.
+- File trong `library/brand/sfx/`; `vf make-sfx` tạo bản tạm bằng numpy — nên thay bằng SFX có bản quyền cùng tên.
+- Giữ tiếng ASMR thật của nguồn (bấm máy, bôi gel, mở hộp).
 
-**Chưa có (đề xuất, cần làm thêm code):** chữ nằm sau người (tách nền MediaPipe), dừng hình + viền trắng cut-out ở hook, sản phẩm tách nền bay vào ở CTA (cần ảnh PNG sản phẩm, hồ sơ mục 8), cột so sánh 8 triệu vs 800k ở nửa sau video, thanh tiến độ video. Không tự dựng hiệu ứng thay thế bằng chữ cho các mục này.
+## 9. Nên / không nên
+
+**Nên:** một hệ chữ; đủ ý theo chương; giữ trọn cảnh trước/sau; zoom rồi mới chú thích; cam kết nổi bật; CTA giữa video + cuối, trong vùng an toàn; 3–6 biến thể khác nhau rõ.
+
+**Không:** chữ đè chữ có sẵn; meme/sticker trong preset pink/vox/proof; mở đầu bằng giá; flash trắng; cảnh < 1,2 s; chỉnh màu răng thật; bịa before/after/số liệu; dùng hình, nhạc, giọng, câu chữ nguyên văn của video tham khảo.
+
+## Phụ lục — video mẫu đã học (chỉ kỹ thuật)
+
+- **A** `snaptik.vn_7690505641718271284.mp4` (33,4 s): bản dựng lại clip KOL hộp quà 20/10. Cảnh ~3,3 s, thẻ chữ tím mận 2 tầng gần mỗi cảnh, thẻ toàn màn hình khi chuyển ý, thanh đèn có tiến độ, nhãn TRƯỚC/SAU, polaroid.
+- **B** `snaptik.vn_7694846295957081365.mp4` (45 s): motion graphic giải thích; câu dẫn nghiêng nhỏ + ô từ khoá viết hoa, bộ đếm số chạy.

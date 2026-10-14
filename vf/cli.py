@@ -13,13 +13,13 @@ from pathlib import Path
 import typer
 
 from vf.analyze import analyze_all, list_videos, load_cuts, load_words, source_work_dir
-from vf.brief import load_brief, read_phrase_list
+from vf.brief import load_brief
 from vf.config import load_config
 from vf.creative import SFX_EXTS, lint_batch
-from vf.learn import stats_markdown, summarize_reviews
+from vf.learn import METRIC_COLUMNS, stats_markdown, stats_report, summarize_reviews
 from vf.edl import Variant, load_edl, output_duration
 from vf.scenes import micro_shots
-from vf.paths import BRAND_DIR, BRIEF_TEMPLATE, CAPTION_STYLE, FORBIDDEN_PATH, PENDING_PATH
+from vf.paths import BRAND_DIR, BRIEF_TEMPLATE, CAPTION_STYLE, LIBRARY
 from vf.probe import MediaInfo
 from vf.qa import ClaimViolation, check_output, contact_sheet
 from vf.render import render_variant
@@ -28,8 +28,9 @@ from vf.transcribe import transcribe
 
 app = typer.Typer(help="Video factory cho Smilee: phân tích nguồn, dựng biến thể, QA.", no_args_is_help=True)
 
-REVIEW_COLUMNS = ["variant", "hook_type", "hook_text", "score", "notes", "views", "retention_3s"]
-USER_COLUMNS = ["score", "notes", "views", "retention_3s"]
+# score/notes: người dùng chấm riêng từng biến thể; các cột sau: số liệu TikTok sau khi đăng (vòng học)
+USER_COLUMNS = ["score", "notes", "views", "retention_3s", *METRIC_COLUMNS]
+REVIEW_COLUMNS = ["variant", "hook_type", "preset", "length_s", "hook_text", *USER_COLUMNS]
 
 ConfigOpt = typer.Option(Path("vf.toml"), "--config", help="File cấu hình (drive_root)")
 JobsOpt = typer.Option(Path("jobs"), "--jobs-dir", help="Thư mục chứa jobs/<lô>/")
@@ -198,11 +199,13 @@ def render(
     job = jobs_dir / lo
     brief_path = job / "brief.yaml"
     if brief_path.exists():
-        brief = load_brief(brief_path, FORBIDDEN_PATH, PENDING_PATH)
+        # không kiểm claim theo forbidden.txt / claims_pending.txt (người dùng chốt 2026-10-14);
+        # chỉ chặn cụm mà chính brief của lô ghi trong `forbidden`
+        brief = load_brief(brief_path, None, None)
         forbidden, target, cutdown = brief.forbidden, brief.target_seconds, brief.cutdown_seconds
         text_sources, text_free = set(brief.text_sources), brief.text_free
     else:
-        forbidden, target, cutdown = read_phrase_list(FORBIDDEN_PATH) + read_phrase_list(PENDING_PATH), None, None
+        forbidden, target, cutdown = [], None, None
         text_sources, text_free = set(), {}
     sources, infos = _load_infos(cfg.sources_dir, work_dir)
     if not infos:
@@ -219,7 +222,8 @@ def render(
     rows = []
     batch_notes = lint_batch([v for v in edl.variants if not only or v.id in only])
     for v in edl.variants:
-        rows.append({"variant": v.id, "hook_type": v.hook_type, "hook_text": _hook_text(v, words)})
+        rows.append({"variant": v.id, "hook_type": v.hook_type, "preset": v.preset or "pink",
+                     "length_s": f"{output_duration(v):.1f}", "hook_text": _hook_text(v, words)})
         if only and v.id not in only:
             continue
         out = out_dir / f"{v.id}.mp4"
@@ -339,8 +343,8 @@ def doctor(config: Path = ConfigOpt) -> None:
     if sfx:
         ok(f"SFX: {len(sfx)} file trong library/brand/sfx/")
     else:
-        warn("chưa có SFX — video không có âm thanh dựng; bỏ whoosh/pop/marker/paper/tick/swipe/shimmer"
-             " (.wav/.mp3, có giấy phép) vào library/brand/sfx/")
+        warn("chưa có SFX — video không có âm thanh dựng; chạy `vf make-sfx` (SFX tạm) hoặc bỏ SFX có giấy phép"
+             " cùng tên (pop, whoosh, click, ding, marker, slam, paper, tick, swipe, shimmer) vào library/brand/sfx/")
 
     typer.echo("Sẵn sàng. Gõ /smilee-video trong Claude Code." if not errors else f"Còn {errors} lỗi cần sửa.")
     if errors:
@@ -348,7 +352,10 @@ def doctor(config: Path = ConfigOpt) -> None:
 
 
 @app.command()
-def learn(config: Path = ConfigOpt) -> None:
+def learn(
+    config: Path = ConfigOpt,
+    write: bool = typer.Option(False, "--write", help="Ghi bảng theo preset × hook × độ dài vào library/learnings-stats.md"),
+) -> None:
     """Tổng hợp mọi <drive>/out/*/review.csv theo kiểu hook (đầu vào cho skill video-learnings)."""
     cfg = load_config(config)
     csvs = sorted(cfg.out_dir.glob("*/review.csv"))
@@ -357,6 +364,10 @@ def learn(config: Path = ConfigOpt) -> None:
         raise typer.Exit(code=1)
     typer.echo("Lô: " + ", ".join(p.parent.name for p in csvs))
     typer.echo(stats_markdown(summarize_reviews(csvs)))
+    if write:
+        out = LIBRARY / "learnings-stats.md"
+        out.write_text(stats_report(csvs), encoding="utf-8")
+        typer.echo(f"Đã ghi {out}")
 
 
 @app.command()
@@ -384,6 +395,37 @@ def style(
         typer.echo(f"{ref.name}: {stats.duration:.1f} s, {stats.n_cuts} cắt cảnh, "
                    f"TB {stats.avg_shot_s:.2f} s/cảnh, {len(frames)} khung hình")
     typer.echo(f"Xong: {work_dir / 'style'}")
+
+
+@app.command("make-sfx")
+def make_sfx_cmd(force: bool = typer.Option(False, "--force", help="Ghi đè cả file đã có")) -> None:
+    """Tạo SFX tạm (numpy) còn thiếu trong library/brand/sfx/ — nên thay dần bằng SFX có bản quyền cùng tên."""
+    from vf.sfx import make_sfx
+
+    made = make_sfx(BRAND_DIR / "sfx", force=force)
+    typer.echo(f"Đã tạo {len(made)} file: " + ", ".join(p.name for p in made) if made else "Đủ SFX rồi, không tạo thêm.")
+
+
+@app.command()
+def sheet(
+    video: Path,
+    every: float = typer.Option(0.5, "--every", help="Mỗi bao nhiêu giây một khung"),
+    out_dir: Path = typer.Option(Path("work/_sheets"), "--out", help="Thư mục ghi ảnh"),
+) -> None:
+    """Ảnh tổng quan có mốc giờ nguồn + viền vùng an toàn (đọc chữ in sẵn, cảnh tiền, toạ độ răng)."""
+    from vf.qa import timeline_sheet
+
+    for p in timeline_sheet(video, out_dir, every):
+        typer.echo(str(p))
+
+
+@app.command()
+def expand(lo: str, jobs_dir: Path = JobsOpt) -> None:
+    """Sinh biến thể GMV Max từ khối `matrix` của jobs/<lô>/edl.json (hooks × bodies × ctas × presets)."""
+    from vf.matrix import expand_file
+
+    ids = expand_file(jobs_dir / lo / "edl.json")
+    typer.echo(f"Thêm {len(ids)} biến thể" + (": " + ", ".join(ids) if ids else " (đã có đủ)"))
 
 
 if __name__ == "__main__":

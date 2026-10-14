@@ -1,3 +1,5 @@
+# KHÔNG CÒN DÙNG ĐỂ CHẶN (người dùng chốt 2026-10-14: không chặn claim, không cảnh báo). Giữ làm tham khảo.
+# Muốn chặn cụm nào cho một lô: ghi vào `forbidden` trong jobs/<lô>/brief.yaml.
 # Claim CHƯA có bằng chứng (library/product.md mục 5, 7). Chặn render giống forbidden.txt.
 # Khi đã lưu bằng chứng (ảnh chụp màn hình có ngày, xác nhận nhãn hàng) thì xoá dòng tương ứng.
 # Dòng bắt đầu bằng # là chú thích. Khi so khớp, "5 - 7"/"năm đến bảy" coi như "5-7"; "4,8"/"bốn chấm tám" coi như "4.8".

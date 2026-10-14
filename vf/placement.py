@@ -19,10 +19,10 @@ SIDE_PAD_PX = 36  # đệm ngang của hộp chữ — khớp remotion/src/Overl
 SLACK_PX = 24  # chừa cho viền chữ, bóng, nhịp đập CTA (×1.04), lắc nhẹ thẻ cam kết
 UPPER_STYLES = {"lower", "tag", "vox"}  # viết hoa: chữ rộng hơn
 GRAPHIC_H_PX = {"light": 150, "whiten": 520, "teeth": 350, "counter": 1920, "callout": 1920, "collage": 1920,
-                "shade": 300, "wipe": 1920}
-GRAPHIC_W_PX = {"light": 640, "whiten": 520, "teeth": 540, "counter": 1080, "callout": 1080, "collage": 1080,
-                "shade": 680, "wipe": 1080}
-FULL_FRAME = {"counter", "callout", "collage", "wipe"}  # tự bố cục bên trong vùng an toàn (remotion, props `safe`)
+                "shade": 300, "wipe": 1920, "light_timer": 330, "kinetic": 1920, "end_card": 300}
+GRAPHIC_W_PX = {"light": 620, "whiten": 520, "teeth": 540, "counter": 1080, "callout": 1080, "collage": 1080,
+                "shade": 620, "wipe": 1080, "light_timer": 620, "kinetic": 1080, "end_card": 620}
+FULL_FRAME = {"counter", "callout", "collage", "wipe", "kinetic", "paper_swipe"}  # tự bố cục bên trong vùng an toàn (remotion, props `safe`)
 TOP_MIN, BOTTOM_MAX = SAFE.y0, SAFE.y1  # vùng an toàn TikTok: trên 240 px, dưới 660 px
 PREFERRED = {"top": 0.14, "center": 0.42, "bottom": 0.54}
 FACE_WEIGHT, BUSY_WEIGHT, PREF_WEIGHT, COLLIDE_WEIGHT = 6.0, 1.0, 0.25, 10.0
@@ -54,8 +54,14 @@ def text_box(o: TextOverlay, max_w_px: float = MAX_TEXT_W) -> tuple[float, float
 
 
 def safe_text_w_px(y_top: float, y_bot: float) -> float:
-    """Bề rộng hộp chữ (px) tối đa ở độ cao này: hẹp lại khi hộp chạm tới hàng cột nút bên phải."""
-    return min(MAX_TEXT_W, SAFE.max_centered_w(y_top, y_bot) * 1080 - SLACK_PX)
+    """Bề rộng hộp chữ (px) tối đa ở độ cao này: hẹp lại (và lệch trái, SAFE.center_x) khi chạm hàng cột nút."""
+    return min(MAX_TEXT_W, SAFE.max_w(y_top, y_bot) * 1080 - SLACK_PX)
+
+
+def _box(w: float, y: float, h: float) -> tuple[tuple[float, float, float, float], float]:
+    """Hộp rộng w đặt giữa khoảng an toàn ở độ cao y..y+h → (hộp, tâm ngang)."""
+    cx = SAFE.center_x(y, y + h)
+    return (cx - w / 2, y, cx + w / 2, y + h), cx
 
 
 def graphic_box(g: Graphic) -> tuple[float, float]:
@@ -143,11 +149,13 @@ def _score(box, frames_data, pref: float | None, placed: list[tuple], ) -> float
 
 
 def best_y(frames_data, w: float, h: float, pref: float | None, placed: list[tuple]) -> float:
-    x0 = (1 - w) / 2
     best, best_s = TOP_MIN, math.inf
     y = TOP_MIN
     while y + h <= BOTTOM_MAX + 1e-6:
-        box = (x0, y, x0 + w, y + h)
+        if w > SAFE.max_w(y, y + h) + 1e-6:  # không vừa bề ngang an toàn ở độ cao này (hàng cột nút)
+            y += 0.02
+            continue
+        box, _ = _box(w, y, h)
         s = _score(box, frames_data, pref, placed)
         if s < best_s - 1e-9:
             best, best_s = y, s
@@ -165,7 +173,7 @@ def best_text_y(frames_data, o: TextOverlay, pref: float | None, placed: list[tu
         if y + h > SAFE.rail_y:  # chạm hàng cột nút → hẹp lại, chữ xuống dòng nhiều hơn
             w, h = text_box(o, safe_text_w_px(y, y + 1))
         if y + h <= BOTTOM_MAX + 1e-6:
-            box = ((1 - w) / 2, y, (1 + w) / 2, y + h)
+            box, _ = _box(w, y, h)
             s = _score(box, frames_data, pref, placed)
             if s < best_s - 1e-9:
                 best, best_s = (round(y, 3), w, h), s
@@ -185,9 +193,10 @@ def fit_callout(g: Graphic) -> Graphic:
     ry = min(g.ry, (BOTTOM_MAX - TOP_MIN) / 2 - 0.01)
     cy = min(max(g.cy, TOP_MIN + ry), BOTTOM_MAX - ry)
     x0, x1 = SAFE.x_range(cy - ry, cy + ry)
-    rx = min(g.rx, (x1 - x0) / 2 - 0.01)
+    rx = math.floor(min(g.rx, (x1 - x0) / 2 - 0.01) * 1000) / 1000  # làm tròn xuống: không lấn ra sau khi làm tròn
     cx = min(max(g.cx, x0 + rx), x1 - rx)
-    return g.model_copy(update={"cx": round(cx, 3), "cy": round(cy, 3), "rx": round(rx, 3), "ry": round(ry, 3)})
+    cx = min(max(round(cx, 3), x0 + rx), x1 - rx)
+    return g.model_copy(update={"cx": cx, "cy": round(cy, 3), "rx": rx, "ry": round(ry, 3)})
 
 
 def place(
@@ -235,8 +244,9 @@ def place(
             else:
                 y = best_y(sample(g.start, g.end), w, h, None, busy(g.start, g.end))
             y = round(y, 3)
-            placed.append((g.start, g.end, ((1 - w) / 2, y, (1 + w) / 2, y + h)))
-            out_g.append(g.model_copy(update={"y": y}))
+            box, cx = _box(w, y, h)
+            placed.append((g.start, g.end, box))
+            out_g.append(g.model_copy(update={"y": y, "xc": round(cx, 4)}))
         out_o = []
         for o in overlays:
             pref = PREFERRED[o.position]
@@ -252,9 +262,10 @@ def place(
                     notes.append(f"vùng an toàn: chữ \"{o.text}\" quá dài, không vừa khung an toàn — rút ngắn chữ")
                 else:
                     y, w, h = found
-            placed.append((o.start, o.end, ((1 - w) / 2, y, (1 + w) / 2, y + h)))
+            box, cx = _box(w, y, h)
+            placed.append((o.start, o.end, box))
             # Remotion: hộp chữ không rộng quá bề rộng an toàn ở độ cao này (chữ tự xuống dòng bên trong)
-            out_o.append(o.model_copy(update={"y": y, "max_w": int(safe_text_w_px(y, y + h))}))
+            out_o.append(o.model_copy(update={"y": y, "xc": round(cx, 4), "max_w": int(safe_text_w_px(y, y + h))}))
         return out_o, out_g, notes
     finally:
         if frames is not None:

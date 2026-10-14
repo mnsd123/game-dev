@@ -1,90 +1,102 @@
 ---
 name: video-batch-edit
-description: Dùng khi người dùng nói "Edit lô <lô>" hoặc muốn dựng hàng loạt video Smilee từ video gốc trong Drive — phân tích nguồn, viết edl.json nhiều biến thể khác kiểu hook, render 9:16, QA, báo kết quả.
+description: Dùng khi người dùng nói "Edit lô <lô>" hoặc muốn dựng hàng loạt video Smilee từ video gốc trong Drive — phân tích nguồn, viết edl.json nhiều biến thể khác kiểu hook/preset, render 9:16, QA, báo kết quả.
 ---
 
-# Edit video hàng loạt cho Smilee
+# Edit video hàng loạt cho Smilee (EDL v2)
 
-Mỗi lô nằm ở `jobs/<lô>/` (brief.yaml, edl.json). Video nguồn ở `<drive_root>/source gốc/`, output ở `<drive_root>/out/<lô>/`. Không bao giờ sửa, xoá hay di chuyển file trong `source gốc` và `video tham khảo`.
+Mỗi lô ở `jobs/<lô>/` (brief.yaml, edl.json). Nguồn ở `<drive_root>/source gốc/`, output ở `<drive_root>/out/<lô>/`. Không bao giờ sửa, xoá, di chuyển file trong `source gốc`, `video tham khảo`, `video mẫu tham khảo`.
 
 ## Bước 1. Phân tích
 
 ```
 vf analyze <lô>
+vf sheet "work/<nguồn>/normalized.mp4" --every 0.5
 ```
-Nếu `jobs/<lô>/brief.yaml` chưa có thì chạy `vf new <lô>`, rồi DỪNG và nhờ người dùng điền brief.
-Nguồn chỉ có hình (b-roll) vẫn chạy được: transcript rỗng, biến thể dùng nguồn đó tự bỏ phụ đề.
+Chưa có `jobs/<lô>/brief.yaml` → `vf new <lô>`, DỪNG, nhờ người dùng điền brief. Nguồn chỉ có hình (b-roll) vẫn chạy được (transcript rỗng).
 
 ## Bước 2. Đọc đủ ngữ cảnh trước khi viết edl
 
-Đọc hết, không đọc lướt:
+Đọc hết, không lướt:
 1. `jobs/<lô>/brief.yaml`
-2. `library/product.md`, đặc biệt mục 6 "Những điều KHÔNG được nói" và mọi dòng còn `[CẦN XÁC NHẬN]`
-3. `library/style-guide.md` (nhịp cắt, kiểu chữ, hiệu ứng; mục 7 âm thanh, 11 preset, 12 hệ chữ, 13 vùng an toàn, 14 motion mới). Nếu file chưa có dòng "ĐÃ DUYỆT" thì báo người dùng rằng lô này dựng theo mặc định.
-4. `library/hooks.md` và `library/learnings.md`: ưu tiên kiểu hook đang thắng, tránh điều đã bị chấm thấp
-5. `library/forbidden.txt` và `library/claims_pending.txt`
-6. `work/<tên nguồn>/transcript.json`, `keep.json`, `info.json`, `scenes.json` của MỌI nguồn
-7. Ảnh ghép khung hình của nguồn (ví dụ `ffmpeg -i work/<nguồn>/normalized.mp4 -vf "fps=1/5,scale=216:384,tile=9x3" -frames:v 1 sheet.jpg`, rồi Read ảnh) để biết cảnh nào có mặt, sản phẩm, đèn
+2. `library/style-guide.md` (luật v2) và `library/brand/tokens.json` (thông số, preset)
+3. `library/product.md` (nỗi đau, lợi ích, cách dùng, cam kết)
+4. `library/hooks.md`, `library/learnings.md`, `library/learnings-stats.md`: ưu tiên kiểu hook/preset đang thắng, tránh điều bị chấm thấp
+5. `work/<nguồn>/transcript.json`, `keep.json`, `info.json`, `scenes.json` của MỌI nguồn
+6. MỌI trang `*_sheet_NNN.png` của `vf sheet`: chữ in sẵn ở đâu/lúc nào, cảnh tiền, chương, vị trí răng
 
 ## Bước 3. Viết `jobs/<lô>/edl.json`
 
-Định dạng: xem `templates/edl.example.json` và `vf/edl.py`. Quy tắc:
+Schema: `vf/edl.py`, mẫu `templates/edl.example.json`. Mọi thời gian `overlays`/`graphics`/`effects` theo **timeline output** (giây, 0 = đầu video).
 
-- **Mỗi biến thể một `preset`** (style guide mục 11: `ugc`, `result_rewind`, `vox`, `routine`, `reply`, `beat`), không trộn hai ngôn ngữ đồ hoạ trong một bản. Các biến thể trong lô khác nhau ở ít nhất 2 trong 3 trục: câu hook, khung hình mở đầu, preset. Render ghi `hook trùng với …` khi hai bản cùng lần render dùng chung đoạn hook (bản sửa của biến thể cũ thì được trùng, nhưng render riêng bằng `--only`).
-- Đúng `brief.variants` biến thể, **mỗi biến thể một kiểu hook khác nhau**, chọn trong: `pain` (nỗi đau), `question` (câu hỏi), `result_first` (kết quả trước), `contrarian` (phản đề), `cost_compare` (so sánh chi phí). Ghi `hook_type` đúng tên đó.
-- Hook ≤ 3 s, phải là câu có lực nhất cho kiểu hook đó; có thể lấy từ giữa video gốc.
-- Tổng thời lượng mỗi biến thể trong `target_seconds ± 10%`. Brief có `cutdown_seconds` → thêm cho mỗi biến thể chính một bản ngắn `"cutdown_of": "<id>"`, id `<id>-ngan`, giữ hook + bằng chứng mạnh nhất + CTA, thời lượng `cutdown_seconds ± 10%`.
-- **Hook hình trong 2 s đầu**: ngành beauty nên cho thấy kết quả (cận nụ cười, răng) hoặc hành động ngay khung đầu; chữ hook xuất hiện trước 0.5 s (trừ nguồn có chữ in sẵn ở hook).
-- **CTA hai lần**: một CTA mềm ở 60–85 % thời lượng (ví dụ thẻ `lower` "XEM BỘ KIT / ở giỏ hàng nhé") + CTA cuối. Người xem rời mạnh sau giây ~25, CTA chỉ ở cuối là ít người thấy.
-- Chỉ lấy đoạn nằm trong `keep.json` (đã bỏ khoảng lặng), cắt ở ranh giới từ trong transcript, không cắt giữa từ.
-- **Cắt theo cảnh (chống "vấp hình")**: đối chiếu mép mỗi đoạn với `scenes.json`. Không để mép đoạn cách điểm chuyển cảnh < 0.5 s (sẽ lộ vài khung hình của cảnh khác). Ưu tiên chọn mép đoạn trùng điểm chuyển cảnh hoặc khoảng lặng giữa hai từ gần đó. Render tự giữ khung hình kề bên cho mẩu còn sót và tự phóng to xen kẽ (×1.12) khi hai đoạn liên tiếp cắt nhảy trong cùng một cảnh.
-- **Không lấy đoạn người nói nói ra cụm cấm** dù không đặt chữ lên (lo-01: hai câu "đảm bảo", câu "top 1 thị trường 3 năm liên tục" chưa có bằng chứng, đoạn mời livestream của KOL).
-- `segments[].source` là tên file nguồn (kèm đuôi). Dùng nguồn theo `source_roles`: `a_roll` mang lời nói, `b_roll` chèn minh hoạ.
-- Tôn trọng `must_keep`, `must_cut`, `forbidden` của brief.
-- **Không lấy đoạn có ô chèn/trích clip của người sáng tạo, người nổi tiếng khác** (clip KOL hay chèn video reaction): hồ sơ sản phẩm mục 6 cấm dùng hình ảnh của họ. Xem ảnh ghép khung hình để phát hiện (lo-02: đoạn 22.98–29.36 s).
-- **Nguồn trong `brief.text_sources` (đã có chữ in sẵn)**: xem khung hình từng giây của các đoạn định dùng, ghi các khoảng KHÔNG có chữ in sẵn vào `brief.text_free` (giờ nguồn). Chỉ đặt chữ trong các khoảng đó; render tự bỏ chữ nằm ngoài. Không có `text_free` = không thêm chữ nào cho nguồn đó.
-- **Nhịp cắt (style guide mục 1)**: mỗi cảnh trong output ≥ 1.2 s, nhắm 2–4 s. Bỏ các chuỗi dựng nhanh của nguồn (cảnh < 1 s, ví dụ nhật ký 7 ngày) — thay bằng một cảnh dài + thẻ đếm ngày.
-- **Thẻ chữ theo style guide (mục 4–5)**: `style: "lower"` = thẻ hai dòng nền tím mận (`text` dòng chính hồng viết hoa 2–5 từ, `sub` dòng phụ trắng ≤ 7 từ) — kiểu chính, dùng cho nỗi đau/lợi ích/CTA; `style: "tag"` = nhãn hồng nghiêng ngắn ("TRƯỚC", "SAU ✓").
-- **Phong cách Vox (style guide mục 10) — ưu tiên**: chỉ thêm đồ hoạ ở đoạn nguồn trơn; đoạn nguồn đã có chữ, sticker, khoanh hay hình minh hoạ sẵn thì để nguyên. Cận cảnh răng vàng: `effects` `{"kind": "zoom_to", "at", "duration", "zoom": 1.6, "track": "teeth"}` + `graphics` `{"kind": "callout", "label": "Răng ố vàng", "cx": 0.5, "cy": 0.5, "rx": 0.36, "ry": 0.085}` cùng khoảng thời gian (ống kính bám răng nên vòng khoanh để giữa khung). Cảnh trước/sau gốc để trọn; sau đó `{"kind": "collage", "stills": [{"source", "t", "crop": [x0,y0,x1,y1], "label": "Trước"}, {..., "label": "Sau 7 ngày"}]}` trên đoạn nói chuyện trơn 3–4 s. Chữ bổ sung dùng `style: "vox"`.
-- **Motion graphic minh hoạ đèn — luôn cân nhắc, đừng bỏ qua** (người dùng 2026-10-14: v4–v5 được khen phần răng chuyển trắng). Mỗi lô có đoạn nói về đèn xanh/đỏ thì tìm chỗ đặt hàm răng vector: chỗ trống không che mặt và không đè chữ/hình có sẵn (thường là trên đầu trong cảnh trung, `y` cố định ~0.035, chỉ pha xanh `split: 1` nếu cảnh đèn đỏ là cận mặt). Kết hợp được với Vox (zoom, khoanh, ảnh ghép): `{"kind": "teeth", "start", "end", "split"}` = hàm răng vector, đèn xanh quét làm răng vàng → trắng rồi đèn đỏ dịu nướu (split = tỉ lệ thời lượng pha xanh), đặt đúng lúc người nói nói về đèn, kèm `light` xanh/đỏ để có vầng sáng. `{"kind": "counter", "label": "dùng đều mỗi ngày"}` = thẻ toàn màn hình đếm NGÀY 1 → 7, 1–1.5 s, đặt giữa cảnh before và after.
-- **Không phụ đề toàn bộ lời nói** (`captions` mặc định `false`). Chỉ đặt chữ động ở đoạn quan trọng: hook (giây 0–3), cam kết, lợi ích chính (15 phút, tại nhà, không cần hẹn lịch, ~800k so với ~8 triệu), CTA. Khoảng 3–6 overlay mỗi biến thể là đủ.
-- **3 cam kết kết quả** ("trắng sau 5–7 ngày", "bật 3–4 tone", "trắng như sứ") được pipeline **tự phát hiện trong lời nói và tự thêm thẻ highlight** (`library/commitments.txt`). Theo quyết định của người dùng ngày 2026-10-13, chúng KHÔNG bị chặn. Nên ưu tiên giữ các đoạn người nói nói ra cam kết này. Không cần tự thêm overlay cho chúng, trừ khi muốn đổi vị trí/chữ (overlay trong edl cùng chữ, trùng thời gian sẽ thay cho bản tự động).
-- **Không chọn đoạn mà người nói nói ra claim còn trong `claims_pending.txt`** (4.8 sao, lượt bán, sinh hoạt bình thường…) nếu định đặt chữ lên đoạn đó, và không đưa cụm trong `forbidden.txt` lên chữ. Render sẽ bị chặn.
-- Overlay ngắn (≤ 7 từ), không chứa giá/ưu đãi trong 3 s đầu nếu `goal` là `awareness`.
-- Mỗi overlay chọn `style` và `animation`:
-  - `style`: `hook` (chữ trắng viền đen, to), `commit` (thẻ trắng + vệt highlight), `label` (nhãn màu nhỏ), `cta` (nút màu, đập nhẹ), `plain`.
-  - `animation`: `word_by_word` (hiện từng từ, hợp hook), `pop` (bật lên), `highlight` (vệt bút dạ quét qua `emphasis`, rỗng = cả câu), `slide` (trượt vào, hợp nhãn), `none`.
-  - Ví dụ: `{"text": "15 phút tại nhà", "start": 4.0, "end": 5.2, "position": "top", "style": "label", "animation": "slide"}`.
-  - `position` chỉ là gợi ý: render dùng OpenCV tìm mặt + vùng nhiều chi tiết (sản phẩm, tay) rồi tự đặt `y` để chữ không che mặt/sản phẩm, không đè chữ khác, và **luôn trong vùng an toàn TikTok** — chỉ áp cho phần thêm vào, nội dung có sẵn của nguồn giữ nguyên (style guide mục 13: trên 12.5 %, dưới 65.6 %, hai bên 120 px, cột nút phải 180 px từ 43.75 % xuống; hộp chữ tự hẹp lại ở hàng cột nút). Mặc định đừng ghi `y`. Ghi `y` (mép trên, tỉ lệ chiều cao) chỉ khi cần cố định, trong khoảng 0.125–0.6; ngoài khoảng đó render tự kéo vào và ghi chú.
-  - Chữ ≤ 3.5 từ/giây, tối đa 2 khối chữ cùng lúc; overlay quá dài không vừa vùng an toàn → render ghi `quá dài` — rút chữ, đừng hạ cỡ chữ.
-  - Font: file đầu tiên trong `library/brand/` (mặc định Montserrat ExtraBold, đủ dấu tiếng Việt). Chữ hook/plain có viền đen + nền tối mờ; nhãn/CTA nền hồng Smilee; thẻ cam kết nền trắng.
-- **Hiệu ứng minh hoạ** (`graphics`, timeline output) — đặt đúng lúc người nói nói tới. Mọi graphic tự nằm trong vùng an toàn; `callout` có `cx, cy, rx, ry` ngoài vùng an toàn bị kéo vào trong:
-  - Thang màu răng: `{"kind": "shade", "start", "end", "from_shade": 10, "to_shade": 5, "label": "theo trải nghiệm của Giao"}` — chỉ khi người nói nói ra số mức (không tự bịa số), `label` ghi nguồn. 2–3 s.
-  - Thanh gạt trước/sau: `{"kind": "wipe", "start", "end", "stills": [{"source", "t", "crop", "label": "Trước"}, {..., "label": "Sau 7 ngày"}]}` — ảnh cắt từ cảnh trước/sau **thật** của nguồn; đặt sau khi cảnh gốc đã chạy trọn, trên đoạn nói trơn 2.5–3.5 s. Hợp preset `result_rewind`.
-  - Đèn: `{"kind": "light", "color": "blue", "label": "Đèn xanh · 10 phút", "start": …, "end": …}` → viền sáng xanh/đỏ nhịp thở quanh khung, hạt sáng, thẻ đồng hồ chạy vòng. Dùng `"red"` cho đèn đỏ (dịu nướu). Nhãn ≤ 4 từ.
-  - Răng: `{"kind": "whiten", "start": …, "end": …}` → icon răng vàng → trắng, "Trước"/"Sau", thanh màu răng, ghi **"Hình minh họa"**. Đây là đồ hoạ minh hoạ, KHÔNG thay before/after thật; không bỏ dòng "Hình minh họa", không thêm số tone/số ngày lên icon. Before/after thật chỉ dùng tư liệu trong `library/assets/`.
-  - Nhãn của `graphics` cũng bị kiểm tra cụm cấm như chữ.
-- Chuyển cảnh cơ bản bằng `effects`: `zoom_punch` ở chỗ nhấn, `shake` hiếm khi dùng. **Không dùng `flash`** (khung trắng trông như lỗi hình — feedback lo-01). So sánh với nha khoa chỉ nói chi phí và sự tiện lợi, không dìm nha khoa, không nêu tên phòng khám/đối thủ.
-- Không tự bịa before/after, review, số liệu. Chỉ dùng tư liệu có thật trong `library/assets/`.
-- **Âm thanh (style guide mục 7)**: render tự gắn SFX từ `library/brand/sfx/` theo hiệu ứng (whoosh khi zoom, marker khi khoanh, tick khi đếm, pop khi thẻ CTA/tag…). Chỉ ghi `{"kind": "sfx", "at", "asset"}` tay khi cần âm khác; `"sfx_auto": false` để tắt. `music`: nhạc có giấy phép trong `library/brand/`; muốn nhạc trend thì để trống và ghi trong `rationale` "gắn nhạc CML trên TikTok". Giữ đoạn có tiếng ASMR thật (bấm máy, bôi gel).
-- `music` và `effects[].asset` chỉ trỏ tới file có bản quyền trong `library/brand/` hoặc `library/assets/`. Không dùng hình, nhạc, giọng của video tham khảo.
-- `rationale`: một câu nói vì sao biến thể này có thể thắng.
+### Biến thể
+- Đúng `brief.variants` biến thể (mặc định 6 = 3 kiểu hook × 2 preset), **khác nhau rõ về kiểu hook hoặc preset** — không chỉ khác chữ. Render ghi `hook trùng với …` khi hai bản cùng lần render dùng chung đoạn hook.
+- `hook_type`: `pain` | `question` | `result_first` | `contrarian` | `cost_compare`. Không mở đầu bằng giá.
+- `preset` (đúng 1): `pink` | `vox` | `kinetic` | `proof` | `ugc` | `gift` | `routine` | `reply` — chọn theo style guide mục 6 và `learnings-stats.md`.
+- `rationale`: 1–2 câu vì sao biến thể có thể thắng (+ lý do nếu để lại ghi chú `~`).
+- Bản cắt ngắn (brief có `cutdown_seconds`): thêm `"cutdown_of": "<id>"`, id `<id>-ngan`, giữ hook + bằng chứng mạnh nhất + CTA.
+
+### Đoạn (hook + segments)
+- Hook ≤ 3 s, **khung đầu là hình mạnh nhất** (cận răng/kết quả, đèn đang sáng, hộp mở); câu có lực nhất cho kiểu hook đó, lấy từ đâu trong nguồn cũng được.
+- Mỗi đoạn ghi `chapter`: `pain`, `benefit`, `result`, `proof`, `speed`, `saving`, `cta` (hook tự là `hook`; đoạn không ghi = chương của đoạn trước). **Đủ ý**: có cả nỗi đau/lợi ích, hiệu quả, bằng chứng trước/sau, nhanh chóng, tiết kiệm, CTA — lint báo chương còn thiếu.
+- Tổng thời lượng: `target_seconds ± 10%`; mặc định 45 s – 1 phút 40 tuỳ nguồn — nguồn dài, đủ thông tin thì giữ đủ ý thay vì cắt ngắn.
+- Chỉ lấy đoạn trong `keep.json`, cắt ở ranh giới từ. Mép đoạn cách điểm chuyển cảnh (`scenes.json`) ≥ 0,5 s hoặc trùng đúng điểm đó.
+- Mỗi cảnh ≥ 1,2 s (nhắm 2–4 s); bỏ chuỗi dựng nhanh của nguồn (thay bằng một cảnh dài + `counter`), hoặc ghi `rapid: true` nếu cố ý.
+- Cảnh tiền (trước/sau, bật đèn, mở hộp, cận răng): `protect: true`, ≥ 2,5 s, để cảnh gốc chạy trọn rồi mới thêm đồ hoạ.
+- Không lấy đoạn có clip người sáng tạo/người nổi tiếng khác chèn trong nguồn, đoạn mời livestream của KOL.
+- `source` là tên file nguồn (kèm đuôi); `a_roll` mang lời nói, `b_roll` chèn minh hoạ. Tôn trọng `must_keep`, `must_cut` của brief.
+
+### Chữ (`overlays`)
+- `style` theo preset: `lower` (thẻ 2 tầng: `text` 2–6 từ viết hoa + `sub` ≤ 8 từ) cho pink/kinetic/proof/gift/routine/reply; `vox` cho vox; `plain` cho ugc; dùng chung: `tag` (TRƯỚC/SAU ✓), `cta`, `hook`, `commit`. Lint báo trộn hệ chữ (thẻ CTA được miễn).
+- Nhấn màu: `*từ*` = accent, `[từ]` = accent2 (xanh), tối đa 2 cụm. Số luôn nhấn: `*10 PHÚT*` / `[10 PHÚT]` (đèn xanh), `*5 PHÚT*`, `*NGÀY 7*`, `*3–4 TONE*`.
+- `animation`: `pop`, `word_by_word` (hook), `highlight` + `emphasis`, `slide`, `none`.
+- Chữ đầu tiên ≤ 0,3 s. ≤ 3,5 từ/giây; tối đa 2 khối chữ cùng lúc; render tự kéo dài chữ hiện quá ngắn (`max(1,2; 0,6 + 0,25 × số từ)`).
+- Không cắt cảnh trong 0,4 s sau khi chữ hiện. Không đặt chữ `center` trên đoạn `protect` (đè miệng/răng).
+- **Nguồn trong `brief.text_sources`**: chỉ đặt chữ trong các khoảng `brief.text_free` (giờ nguồn không có chữ in sẵn); render tự bỏ chữ ngoài các khoảng đó. Không có `text_free` = không thêm chữ cho nguồn đó.
+- **Vùng an toàn** (chỉ phần thêm vào): đừng ghi `y` — render tự đặt `y`, `xc` (nửa dưới lệch trái), bề rộng, né mặt và vùng nhiều chi tiết. Ghi `y` chỉ khi buộc phải cố định, trong 0,125–0,6.
+- **Cam kết càng nổi bật càng tốt**: 3 cam kết ("trắng sau 5–7 ngày", "bật 3–4 tone", "trắng như sứ") tự highlight khi người nói nói ra (`library/commitments.txt`); ưu tiên giữ các đoạn đó, được đưa lên hook. Không có kiểm tra claim, không disclaimer (người dùng chốt 2026-10-14) — trừ cụm brief của lô ghi trong `forbidden`.
+- Không phụ đề toàn bộ lời (`captions: false`), trừ khi brief yêu cầu.
+- CTA: một CTA mềm trong 60–85 % thời lượng + `end_card` (hoặc thẻ `cta`) trong 3 s cuối.
+
+### Đồ hoạ (`graphics`) và hiệu ứng (`effects`)
+Chỉ thêm ở đoạn nguồn "trơn"; đoạn nguồn đã tự minh hoạ cùng ý (đèn sáng, bảng màu, khoanh sẵn, chữ "ÁNH SÁNG XANH") thì để nguyên. Mọi graphic tự nằm trong vùng an toàn.
+
+| Ý | Cú pháp |
+|---|---|
+| Đèn xanh/đỏ | `{"kind": "light_timer", "start", "end", "rows": [{"min": 10, "title": "ÁNH SÁNG XANH", "sub": "kích hoạt gel", "color": "blue", "at": 0}, {"min": 5, "title": "ÁNH SÁNG ĐỎ", "sub": "làm dịu nướu", "color": "red", "at": 3.2}]}` (`at` = giây từ đầu thẻ, đúng lúc chuyển đèn); thêm `{"kind": "light", "color": "blue"}` nếu muốn vầng sáng |
+| Răng vàng → trắng | `{"kind": "teeth", "start", "end", "split": 0.56}` (hàm răng vector, đèn quét) hoặc `{"kind": "whiten", ...}` (icon, ghi "Hình minh họa") — 1,5–2 s ngay sau cảnh dùng máy |
+| Chỉ vào răng vàng | `effects` `{"kind": "zoom_to", "at", "duration", "zoom": 1.6, "track": "teeth"}` + `graphics` `{"kind": "callout", "label": "răng *ố vàng*", "cx": 0.5, "cy": 0.5, "rx": 0.3, "ry": 0.085}` cùng lúc |
+| Trước/sau | sau cảnh gốc: `{"kind": "wipe", "stills": [{"source", "t", "crop": [x0,y0,x1,y1], "label": "Trước"}, {..., "label": "Sau 7 ngày"}]}` hoặc `collage` (giấy, preset vox) |
+| Thang màu | `{"kind": "shade", "from_shade": 10, "to_shade": 5, "label": "theo trải nghiệm của Giao"}` — chỉ số mức người nói nói ra |
+| Đếm ngày | `{"kind": "counter", "label": "dùng đều mỗi ngày"}` 1–1,5 s giữa cảnh trước và sau |
+| Kinetic hook (preset kinetic) | `{"kind": "kinetic", "start": 0, "end": 1.4, "words": ["RĂNG", "*VÀNG*", "HƠN NGÔ"]}` |
+| CTA cuối | `{"kind": "end_card", "label": "BẤM GIỎ HÀNG", "sub": "xem kit Smilee", "live": true}` 2,5–3 s cuối |
+| Nhấn nhịp | `effects` `zoom_punch` ở chỗ nhấn; mỗi ≤ 4 s phải có một thay đổi (cắt/zoom/đồ hoạ/chữ). Không `flash`, hạn chế `shake` |
+
+Chuyển cảnh ở ranh giới chương do preset quyết định, render tự làm (whip/paper/cut) — không khai tay.
+
+### Âm thanh
+Render tự gắn SFX theo sự kiện (`tokens.auto_sfx`, file `library/brand/sfx/`, `vf make-sfx` tạo bản tạm). Khai tay `{"kind": "sfx", "at", "asset": "sfx/ding.wav"}` khi cần âm khác; `"sfx_auto": false` để tắt. `music`: nhạc có giấy phép trong `library/brand/` (tự hạ khi có giọng); nhạc trend thì để trống và ghi "gắn nhạc CML trên TikTok" trong `rationale`. Giữ tiếng ASMR thật.
+
+### Ma trận GMV Max (tuỳ chọn)
+Khối `"matrix": {"presets": ["ugc", "pink"], "hooks": [{"id", "hook_type", "hook": {...}, "overlays": [...]}], "bodies": [{"id", "segments": [...], "overlays", "graphics", "effects"}], "ctas": [...]}` — thời gian trong mỗi phần tính từ đầu phần đó. `vf expand <lô>` thêm biến thể `<lô>_<hook>_<body>_<cta>_<preset>` (không ghi đè id có sẵn).
+
+### Không bao giờ
+Tự bịa before/after, review, số liệu; chỉnh màu răng thật; dùng hình, nhạc, giọng, câu chữ nguyên văn của video tham khảo; nêu tên phòng khám/đối thủ.
 
 ## Bước 4. Render
 
 ```
-vf render <lô>
+vf render <lô>              # --only <id> để render lại riêng
 ```
-Chữ động render bằng Remotion (thư mục `remotion/`, nền trong suốt) rồi ffmpeg chồng lên video. Nếu chưa cài Remotion, lệnh tự vẽ chữ tĩnh bằng ffmpeg (`--static-text` để ép kiểu này).
-Mã thoát ≠ 0 nghĩa là có biến thể bị chặn (`CHẶN … ClaimViolation`) hoặc lỗi ffmpeg. Với ClaimViolation: **sửa chữ/đoạn trong edl, không sửa `forbidden.txt` hay `claims_pending.txt`.** Lệnh ffmpeg lỗi thì dùng agent `ffmpeg-expert`.
+Chữ/đồ hoạ render bằng Remotion (nền trong suốt) rồi ffmpeg chồng lên video. Chưa cài Remotion thì chữ tĩnh bằng ffmpeg. Lệnh ffmpeg lỗi → agent `ffmpeg-expert`.
 
 ## Bước 5. Tự kiểm tra
 
-- Xem từng `<variant>_sheet.png` (Read ảnh): bố cục, chữ có bị che mặt không, chữ đủ dấu không, nguồn ngang có nền blur đúng không.
-- Đọc `qa.json`: mọi `duration_ok`, `size_ok`, `loudness_ok` phải True và `notes` rỗng. Ghi chú `vùng an toàn: …` = chữ/hình lấn vùng giao diện TikTok (ngoài viền đỏ trên `*_sheet.png`) → sửa edl (rút chữ, dời đoạn, đổi graphic) rồi render lại; không đăng bản còn ghi chú này.
-- Ghi chú sáng tạo (dòng `~` khi render, `creative` trong qa.json: hook chưa có chữ, CTA chỉ ở cuối, đọc không kịp, không có âm thanh, hook trùng): sửa nếu được; không sửa thì nói lý do trong báo cáo.
-- Biến thể nào lỗi thì sửa edl rồi chạy lại riêng nó: `vf render <lô> --only <id>`.
+- Mở từng `<id>_sheet.png`: chữ không đè chữ nguồn, không bị cắt, trong viền đỏ (vùng an toàn), khoanh đúng răng, một hệ chữ, nguồn ngang có nền blur đúng.
+- `qa.json`: `duration_ok`, `size_ok`, `loudness_ok` True, `notes` rỗng. `vùng an toàn: …` → sửa edl, render lại; không báo xong khi còn ghi chú này.
+- `creative` (dòng `~`): hook, CTA, đủ ý, protect, nhịp cắt, trộn hệ chữ, âm thanh, hook trùng, `tự sửa: …` — sửa nếu được, không thì ghi lý do vào `rationale`.
 
 ## Bước 6. Báo người dùng
 
-Liệt kê file trong `<drive_root>/out/<lô>/`, mỗi biến thể một dòng: `id — kiểu hook — câu hook — thời lượng — ý tưởng`. Nhắc người dùng điền cột `score` (1–5) và `notes` trong `review.csv`, sau đó gõ "Chạy video-learnings cho các lô đã chấm".
+Liệt kê file trong `<drive_root>/out/<lô>/`, mỗi biến thể một dòng: `id — preset — kiểu hook — câu hook — thời lượng — ý tưởng`. Nhắc điền `score` (1–5) + `notes` riêng từng biến thể trong `review.csv`, số liệu TikTok sau khi đăng, rồi gõ "Chạy video-learnings".

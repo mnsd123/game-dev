@@ -232,3 +232,32 @@ def contact_sheet_filter(safe=None) -> str:
         f"drawbox=x=iw*{s.side / 1080:.4f}:y=ih*{s.rail_top / 1920:.4f}:w=iw*{1 - (s.side + s.rail_w) / 1080:.4f}"
         f":h=ih*{lower_h:.4f}:color={c}",
     ])
+
+
+def timeline_sheet(video: Path, out_dir: Path, every: float = 0.5, cols: int = 8, rows: int = 6,
+                   thumb_w: int = 216) -> list[Path]:
+    """Ảnh tổng quan có mốc giờ (giờ nguồn) mỗi `every` giây, viền đỏ vùng an toàn; nhiều trang nếu video dài.
+    Dùng khi phân tích nguồn: tìm khoảng có chữ in sẵn (text_free), cảnh tiền (protect), toạ độ răng."""
+    from vf.probe import probe
+    from vf.render import _filter_path, find_font
+    from vf.paths import BRAND_DIR
+
+    dur = probe(video).duration
+    per_page = cols * rows
+    out_dir = Path(out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    font = _filter_path(find_font(BRAND_DIR))
+    pages = []
+    page_s = per_page * every
+    k = 0
+    while k * page_s < dur:
+        out = out_dir / f"{Path(video).stem}_sheet_{k + 1:03d}.png"
+        start = k * page_s
+        run(["ffmpeg", "-y", "-v", "error", "-ss", f"{start:.3f}", "-t", f"{page_s:.3f}", "-i", str(video), "-vf",
+             f"setpts=PTS-STARTPTS+{start:.3f}/TB,fps=1/{every},{contact_sheet_filter()},"
+             f"drawtext=fontfile={font}:text='%{{pts\\:hms}}':x=12:y=12:fontsize=64:fontcolor=white:"
+             f"box=1:boxcolor=black@0.65:boxborderw=8,scale={thumb_w}:-2,tile={cols}x{rows}",
+             "-frames:v", "1", str(out)])
+        pages.append(out)
+        k += 1
+    return pages

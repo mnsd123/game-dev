@@ -49,7 +49,8 @@ def test_analyze_then_render(project):
     with open(out / "review.csv", encoding="utf-8-sig", newline="") as f:
         rows = list(csv.DictReader(f))
     assert len(rows) == 3
-    assert list(rows[0]) == ["variant", "hook_type", "hook_text", "score", "notes", "views", "retention_3s"]
+    assert list(rows[0])[:7] == ["variant", "hook_type", "preset", "length_s", "hook_text", "score", "notes"]
+    assert "ctr" in rows[0] and rows[0]["preset"]
     assert rows[0]["hook_text"] == "Cười mà phải che miệng?"
 
 
@@ -68,17 +69,32 @@ def test_render_keeps_existing_scores(project):
     assert (rows[0]["score"], rows[0]["notes"]) == ("4", "hook ổn")
 
 
-def test_forbidden_overlay_fails_that_variant(project):
+def test_library_forbidden_no_longer_blocks(project):
+    """forbidden.txt không còn chặn (người dùng chốt 2026-10-14)."""
     edl_path = project["job"] / "edl.json"
     edl = json.loads(edl_path.read_text(encoding="utf-8"))
     edl["variants"][1]["overlays"][0]["text"] = "Trắng thần kỳ"
     edl_path.write_text(json.dumps(edl, ensure_ascii=False), encoding="utf-8")
     _invoke("analyze", project, "--no-transcribe")
-    r = _invoke("render", project)
+    r = _invoke("render", project, "--only", "v2-cau-hoi")
+    assert r.exit_code == 0, r.output
+    assert (project["drive"] / "out" / "lo-mau" / "v2-cau-hoi.mp4").exists()
+
+
+def test_brief_forbidden_still_blocks(project):
+    """Cụm cấm do chính brief của lô ghi thì vẫn chặn biến thể đó."""
+    brief = project["job"] / "brief.yaml"
+    brief.write_text(brief.read_text(encoding="utf-8").replace("forbidden: []", "forbidden: [siêu trắng]"),
+                     encoding="utf-8")
+    edl_path = project["job"] / "edl.json"
+    edl = json.loads(edl_path.read_text(encoding="utf-8"))
+    edl["variants"][1]["overlays"][0]["text"] = "Răng siêu trắng"
+    edl_path.write_text(json.dumps(edl, ensure_ascii=False), encoding="utf-8")
+    _invoke("analyze", project, "--no-transcribe")
+    r = _invoke("render", project, "--only", "v2-cau-hoi")
     assert r.exit_code != 0
-    out = project["drive"] / "out" / "lo-mau"
-    assert not (out / "v2-cau-hoi.mp4").exists()
-    assert "thần kỳ" in r.output
+    assert not (project["drive"] / "out" / "lo-mau" / "v2-cau-hoi.mp4").exists()
+    assert "siêu trắng" in r.output
 
 
 def test_new_job_creates_brief(project):

@@ -2,7 +2,7 @@
 giao diện TikTok che (tên tài khoản + caption + nút CTA quảng cáo ở đáy, thanh tab ở trên, cột nút
 avatar/tim/bình luận/chia sẻ ở mép phải).
 
-Số liệu: file template safe zone của TikTok (vẽ trên 720x1280, quy ra 1080x1920) theo Socialync —
+Số liệu: library/brand/tokens.json (safe_zone, skill v2: phải 300 px khi y > 840) — gốc là file template safe zone của TikTok (vẽ trên 720x1280, quy ra 1080x1920) theo Socialync —
 https://www.socialync.io/tools/safe-zones/tiktok . Lấy bộ chặt nhất trong các nguồn 2026 (đáy 660 px;
 nguồn khác nói 350–560 px) để quảng cáo có caption dài + nút CTA cũng không bị che.
 
@@ -21,7 +21,7 @@ class SafeZone:
     top: int = 240  # px: thanh tab "Đang theo dõi / Dành cho bạn", nhãn "Được tài trợ"
     bottom: int = 660  # px: tên tài khoản, caption, nhạc, nút CTA quảng cáo
     side: int = 120  # px mỗi bên
-    rail_w: int = 180  # px: cột nút bên phải (avatar, tim, bình luận, lưu, chia sẻ)
+    rail_w: int = 300  # px: mép phải phần dưới — cột nút (avatar, tim, bình luận, lưu, chia sẻ), skill v2
     rail_top: int = 840  # px: cột nút bắt đầu từ đây xuống đáy
 
     # --- tỉ lệ khung (0–1) ---
@@ -43,6 +43,16 @@ class SafeZone:
         if y_bot > self.rail_y:
             right = min(right, W - self.rail_w)
         return self.side / W, right / W
+
+    def center_x(self, y_top: float, y_bot: float) -> float:
+        """Tâm ngang (tỉ lệ) của khoảng an toàn ở độ cao này: 0.5 ở nửa trên, lệch trái khi chạm hàng cột nút."""
+        x0, x1 = self.x_range(y_top, y_bot)
+        return (x0 + x1) / 2
+
+    def max_w(self, y_top: float, y_bot: float) -> float:
+        """Bề rộng (tỉ lệ) của khoảng an toàn ở độ cao này — hộp đặt giữa khoảng đó (center_x)."""
+        x0, x1 = self.x_range(y_top, y_bot)
+        return x1 - x0
 
     def max_centered_w(self, y_top: float, y_bot: float) -> float:
         """Bề rộng tối đa (tỉ lệ) của hộp căn giữa khung mà vẫn nằm trong vùng an toàn."""
@@ -70,4 +80,16 @@ class SafeZone:
         return asdict(self)
 
 
-SAFE = SafeZone()
+def _from_tokens() -> SafeZone:
+    """Số liệu từ library/brand/tokens.json (safe_zone); thiếu file thì dùng mặc định ở trên."""
+    try:
+        from vf.tokens import load_tokens
+
+        z = load_tokens()["safe_zone"]
+    except (FileNotFoundError, KeyError):
+        return SafeZone()
+    return SafeZone(top=z["top"], bottom=z["bottom"], side=max(z["left"], z["right"]),
+                    rail_w=z["right_lower"], rail_top=z["right_lower_from_y"])
+
+
+SAFE = _from_tokens()

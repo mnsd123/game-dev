@@ -12,10 +12,12 @@ export type OverlayItem = {
   y?: number | null; // mép trên, 0–1 chiều cao khung (Python chọn chỗ không che mặt)
   sub?: string; // style lower: dòng phụ
   max_w?: number | null; // bề rộng hộp tối đa (px) theo vùng an toàn — Python điền
+  xc?: number | null; // tâm ngang hộp (0–1) — Python điền (lệch trái ở hàng cột nút)
 };
 
 export type GraphicItem = {
-  kind: "light" | "whiten" | "teeth" | "counter" | "callout" | "collage" | "shade" | "wipe";
+  kind: "light" | "whiten" | "teeth" | "counter" | "callout" | "collage" | "shade" | "wipe"
+    | "light_timer" | "kinetic" | "end_card" | "paper_swipe";
   start: number;
   end: number;
   color: "blue" | "red";
@@ -29,6 +31,11 @@ export type GraphicItem = {
   stills?: { file: string; label: string }[]; // collage/wipe: ảnh trong public/
   from_shade?: number; // shade: mức thang màu lúc đầu → lúc sau
   to_shade?: number;
+  xc?: number | null; // tâm ngang thẻ (0–1) theo vùng an toàn — Python điền
+  rows?: { min: number; title: string; sub: string; color: "blue" | "red"; at: number }[]; // light_timer
+  words?: string[]; // kinetic: từng cụm đập lên màn hình
+  sub?: string; // end_card: dòng phụ
+  live?: boolean; // end_card: huy hiệu LIVE
 };
 
 // vùng an toàn TikTok (px trên khung 1080x1920) — nguồn số liệu: vf/safezone.py
@@ -47,7 +54,50 @@ export const PALETTE = {
   marker: "#FFE14D",
   ink: "#FF3B30",
   paper: "#EFE6D6",
+  accent2: "#40D6FF", // [từ] trong chữ — xanh (đèn xanh)
+  cardText: "#FFFFFF", // chữ thường trên thẻ preset
 };
+
+export type Tokens = {
+  colors: Record<string, number[]>;
+  presets: Record<string, { box?: string; box_alpha?: number; text?: string; accent?: string; accent2?: string;
+                             highlight?: string; radius?: number }>;
+};
+
+const rgba = (c: number[], a = 1) => `rgba(${c[0]}, ${c[1]}, ${c[2]}, ${a})`;
+
+/** Đổi bảng màu theo preset của biến thể (library/brand/tokens.json). Gọi một lần trước khi vẽ;
+ *  props giống nhau cho mọi khung hình nên sửa PALETTE tại chỗ là an toàn. */
+export const applyPreset = (tokens?: Tokens, preset?: string | null) => {
+  const p = tokens?.presets?.[preset ?? "pink"];
+  if (!tokens || !p) return;
+  const C = tokens.colors;
+  if (p.box && p.box !== "none" && C[p.box]) {
+    PALETTE.plum = rgba(C[p.box]);
+    PALETTE.plumCard = rgba(C[p.box], (p.box_alpha ?? 235) / 255);
+  }
+  if (p.accent && C[p.accent]) PALETTE.pink = rgba(C[p.accent]);
+  if (p.accent2 && C[p.accent2]) PALETTE.accent2 = rgba(C[p.accent2]);
+  if (p.text && C[p.text]) PALETTE.cardText = rgba(C[p.text]);
+  if (p.highlight && C[p.highlight]) PALETTE.marker = rgba(C[p.highlight]);
+};
+
+/** "a *b* [c]" → đoạn thường / accent (*…*) / accent2 ([…]). */
+export const parseRich = (text: string): { t: string; tone: "plain" | "accent" | "accent2" }[] => {
+  const out: { t: string; tone: "plain" | "accent" | "accent2" }[] = [];
+  const re = /\*([^*]+)\*|\[([^\]]+)\]/g;
+  let last = 0;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text))) {
+    if (m.index > last) out.push({ t: text.slice(last, m.index), tone: "plain" });
+    out.push(m[1] != null ? { t: m[1], tone: "accent" } : { t: m[2], tone: "accent2" });
+    last = m.index + m[0].length;
+  }
+  if (last < text.length) out.push({ t: text.slice(last), tone: "plain" });
+  return out;
+};
+export const hasRich = (text: string) => /\*[^*]+\*|\[[^\]]+\]/.test(text);
+export const plainText = (text: string) => parseRich(text).map((p) => p.t).join("");
 
 export type Colors = {
   text: string; // chữ chính
@@ -66,6 +116,8 @@ export type OverlayProps = {
   fontFile?: string; // file trong public/ (Python chép từ library/brand/)
   colors?: Partial<Colors>;
   safe?: Safe;
+  preset?: string | null;
+  tokens?: Tokens;
 };
 
 export const DEFAULT_COLORS: Colors = {

@@ -1,9 +1,11 @@
 {
+  "_doc": "EDL v2 (vf/edl.py). Mỗi biến thể 1 preset (library/brand/tokens.json); mỗi đoạn ghi chapter; protect cho cảnh tiền. Thời gian overlays/graphics/effects theo timeline output (giây).",
   "job": "lo-mau",
   "variants": [
     {
       "id": "v1-noi-dau",
       "hook_type": "pain",
+      "preset": "pink",
       "hook": {
         "source": "nguon_a.mp4",
         "start": 1.0,
@@ -13,12 +15,14 @@
         {
           "source": "nguon_b.mp4",
           "start": 0.0,
-          "end": 2.0
+          "end": 2.0,
+          "chapter": "pain"
         },
         {
           "source": "nguon_a.mp4",
           "start": 4.0,
-          "end": 4.9
+          "end": 4.9,
+          "chapter": "proof"
         }
       ],
       "overlays": [
@@ -66,6 +70,7 @@
     {
       "id": "v2-cau-hoi",
       "hook_type": "question",
+      "preset": "vox",
       "hook": {
         "source": "nguon_b.mp4",
         "start": 0.0,
@@ -75,12 +80,14 @@
         {
           "source": "nguon_a.mp4",
           "start": 1.0,
-          "end": 3.0
+          "end": 3.0,
+          "chapter": "benefit"
         },
         {
           "source": "nguon_b.mp4",
           "start": 2.0,
-          "end": 2.9
+          "end": 2.9,
+          "chapter": "cta"
         }
       ],
       "overlays": [
@@ -106,6 +113,7 @@
     {
       "id": "v3-chi-phi",
       "hook_type": "cost_compare",
+      "preset": "ugc",
       "hook": {
         "source": "nguon_a.mp4",
         "start": 4.0,
@@ -115,12 +123,14 @@
         {
           "source": "nguon_a.mp4",
           "start": 1.0,
-          "end": 3.0
+          "end": 3.0,
+          "chapter": "saving"
         },
         {
           "source": "nguon_b.mp4",
           "start": 0.5,
-          "end": 2.5
+          "end": 2.5,
+          "chapter": "cta"
         }
       ],
       "overlays": [

@@ -15,8 +15,26 @@ import {
 } from "remotion";
 import { CalloutFx, CollageFx, CounterFx, LightFx, ShadeFx, TeethFx, VoxLabel, WhitenFx, WipeFx } from "./Graphics";
 import {
-  Colors, DEFAULT_COLORS, DEFAULT_SAFE, FONT_STACK, OverlayItem, OverlayProps, PALETTE, Safe, safeCenteredW,
+  Colors, DEFAULT_COLORS, DEFAULT_SAFE, FONT_STACK, OverlayItem, OverlayProps, PALETTE, Safe, applyPreset, hasRich,
+  parseRich, plainText, safeCenteredW,
 } from "./types";
+import { EndCardFx, KineticFx, LightTimerFx, PaperSwipeFx } from "./Graphics";
+
+/** Chữ có nhấn: *từ* = accent, [từ] = accent2; phần thường dùng màu `plain`. */
+const Rich: React.FC<{ text: string; plain: string }> = ({ text, plain }) => (
+  <>
+    {parseRich(text).map((p, i) => (
+      <span key={i} style={{ color: p.tone === "accent" ? PALETTE.pink : p.tone === "accent2" ? PALETTE.accent2 : plain }}>
+        {p.t}
+      </span>
+    ))}
+  </>
+);
+
+/** Dời phần tử theo tâm ngang an toàn (xc): lệch trái ở hàng cột nút bên phải. */
+const Shift: React.FC<{ xc?: number | null; children: React.ReactNode }> = ({ xc, children }) => (
+  <AbsoluteFill style={{ translate: `${((xc ?? 0.5) - 0.5) * 1080}px 0px` }}>{children}</AbsoluteFill>
+);
 
 // khớp FONT_PX / PAD_PX trong vf/placement.py (Python ước lượng chiều cao để chọn chỗ đặt)
 const FONT_PX: Record<OverlayItem["style"], number> = { hook: 80, commit: 72, label: 54, cta: 58, plain: 60, lower: 72, tag: 50, vox: 66 };
@@ -55,10 +73,13 @@ const LowerCard: React.FC<{ item: OverlayItem; safe: Safe }> = ({ item, safe }) 
       >
         <div style={{ fontWeight: 900, fontSize: FONT_PX[item.style], lineHeight: 1.12, color: isTag ? "#FFFFFF" : PALETTE.pink,
                       textTransform: "uppercase", letterSpacing: "0.01em" }}>
-          {item.text}
+          {/* có *nhấn* / [nhấn] → phần thường màu chữ preset, phần nhấn accent; không có → cả dòng accent */}
+          {!isTag && hasRich(item.text) ? <Rich text={item.text} plain={PALETTE.cardText} /> : plainText(item.text)}
         </div>
         {item.sub ? (
-          <div style={{ marginTop: 6, fontWeight: 700, fontSize: SUB_PX, color: "#FFFFFF", opacity: subIn }}>{item.sub}</div>
+          <div style={{ marginTop: 6, fontWeight: 700, fontSize: SUB_PX, color: PALETTE.cardText, opacity: subIn }}>
+            <Rich text={item.sub} plain={PALETTE.cardText} />
+          </div>
         ) : null}
       </div>
     </AbsoluteFill>
@@ -129,7 +150,7 @@ const Item: React.FC<{ item: OverlayItem; colors: Colors; safe: Safe }> = ({ ite
     easing: Easing.bezier(0.65, 0, 0.35, 1),
   });
 
-  const words = item.text.split(/\s+/);
+  const words = plainText(item.text).split(/\s+/);
   const content =
     item.animation === "word_by_word" ? (
       words.map((w, i) => {
@@ -149,7 +170,7 @@ const Item: React.FC<{ item: OverlayItem; colors: Colors; safe: Safe }> = ({ ite
         );
       })
     ) : item.animation === "highlight" ? (
-      splitEmphasis(item.text, item.emphasis).map((p, i) =>
+      splitEmphasis(plainText(item.text), item.emphasis).map((p, i) =>
         p.em ? (
           <Marker key={i} progress={markerProgress} color={colors.marker}>
             {p.t}
@@ -159,7 +180,7 @@ const Item: React.FC<{ item: OverlayItem; colors: Colors; safe: Safe }> = ({ ite
         )
       )
     ) : (
-      item.text
+      <Rich text={item.text} plain={fg} />
     );
 
   const scale =
@@ -204,8 +225,9 @@ const Item: React.FC<{ item: OverlayItem; colors: Colors; safe: Safe }> = ({ ite
   );
 };
 
-export const Overlay: React.FC<OverlayProps> = ({ overlays, graphics, fontFile, colors, safe }) => {
+export const Overlay: React.FC<OverlayProps> = ({ overlays, graphics, fontFile, colors, safe, preset, tokens }) => {
   const sz: Safe = { ...DEFAULT_SAFE, ...(safe ?? {}) };
+  applyPreset(tokens, preset);
   const { fps } = useVideoConfig();
   const [handle] = useState(() => (fontFile ? delayRender("Tải font brand") : null));
   useEffect(() => {
@@ -223,10 +245,15 @@ export const Overlay: React.FC<OverlayProps> = ({ overlays, graphics, fontFile, 
         const dur = Math.max(1, Math.round(g.end * fps) - from);
         return (
           <Sequence key={`g${i}`} from={from} durationInFrames={dur} name={`${g.kind} ${g.label}`}>
+            <Shift xc={g.xc}>
             {g.kind === "light" ? <LightFx item={g} /> : g.kind === "teeth" ? <TeethFx item={g} />
               : g.kind === "counter" ? <CounterFx item={g} safe={sz} /> : g.kind === "callout" ? <CalloutFx item={g} safe={sz} />
               : g.kind === "collage" ? <CollageFx item={g} safe={sz} /> : g.kind === "shade" ? <ShadeFx item={g} />
-              : g.kind === "wipe" ? <WipeFx item={g} safe={sz} /> : <WhitenFx item={g} />}
+              : g.kind === "wipe" ? <WipeFx item={g} safe={sz} /> : g.kind === "light_timer" ? <LightTimerFx item={g} />
+              : g.kind === "kinetic" ? <KineticFx item={g} safe={sz} /> : g.kind === "end_card" ? <EndCardFx item={g} />
+              : g.kind === "paper_swipe" ? <PaperSwipeFx />
+              : <WhitenFx item={g} />}
+            </Shift>
           </Sequence>
         );
       })}
@@ -235,8 +262,10 @@ export const Overlay: React.FC<OverlayProps> = ({ overlays, graphics, fontFile, 
         const dur = Math.max(1, Math.round(o.end * fps) - from);
         return (
           <Sequence key={i} from={from} durationInFrames={dur} name={o.text}>
+            <Shift xc={o.xc}>
             {o.style === "lower" || o.style === "tag" ? <LowerCard item={o} safe={sz} /> : o.style === "vox" ? <VoxLabel item={o} safe={sz} />
               : <Item item={o} colors={c} safe={sz} />}
+            </Shift>
           </Sequence>
         );
       })}

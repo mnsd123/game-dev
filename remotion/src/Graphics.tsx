@@ -9,7 +9,7 @@ import {
   useCurrentFrame,
   useVideoConfig,
 } from "remotion";
-import { FONT_STACK, GraphicItem, OverlayItem, PALETTE, Safe, safeCenteredW } from "./types";
+import { FONT_STACK, GraphicItem, OverlayItem, PALETTE, Safe, plainText, safeCenteredW } from "./types";
 
 const LIGHT = {
   blue: { solid: "#2F7BFF", glow: "47, 123, 255" },
@@ -466,7 +466,7 @@ export const VoxLabel: React.FC<{ item: OverlayItem; safe: Safe }> = ({ item, sa
     <AbsoluteFill style={{ alignItems: "center", opacity: exit }}>
       <div style={{ position: "absolute", top: `${(item.y ?? 0.5) * 100}%`, textAlign: "center",
                     maxWidth: item.max_w ?? safeCenteredW(safe) }}>
-        <Highlight text={item.text} fontSize={66} maxWidth={item.max_w ?? safeCenteredW(safe)} />
+        <Highlight text={plainText(item.text)} fontSize={66} maxWidth={item.max_w ?? safeCenteredW(safe)} />
         {item.sub ? (
           <div style={{ marginTop: 10 }}>
             <span
@@ -581,8 +581,10 @@ export const CalloutFx: React.FC<{ item: GraphicItem; safe: Safe }> = ({ item, s
         ) : null}
       </svg>
       {item.label ? (
-        <div style={{ position: "absolute", top: labelY, left: 0, right: 0, textAlign: "center" }}>
-          <Highlight text={item.label} fontSize={70} delay={t0 + Math.round(0.35 * fps)} maxWidth={safeCenteredW(safe)} />
+        <div style={{ position: "absolute", top: labelY, left: safe.side,
+                      right: labelY + LABEL_H > safe.rail_top ? safe.rail_w : safe.side, textAlign: "center" }}>
+          <Highlight text={item.label} fontSize={70} delay={t0 + Math.round(0.35 * fps)}
+                     maxWidth={W - safe.side - (labelY + LABEL_H > safe.rail_top ? safe.rail_w : safe.side) - 24} />
         </div>
       ) : null}
     </AbsoluteFill>
@@ -599,14 +601,14 @@ export const CollageFx: React.FC<{ item: GraphicItem; safe: Safe }> = ({ item, s
     extrapolateRight: "clamp",
   });
   // ảnh ≤ 600x400 (+ viền) đặt trong vùng an toàn: ảnh 2 lệch trái để né hàng cột nút, nhãn ảnh 2 vẫn trên mép dưới
-  const IMG_W = 600;
-  const IMG_H = 400;
+  const IMG_W = 560;
+  const IMG_H = 380;
   const layout = stills.length === 1
     ? [{ top: Math.round((safe.top + 1920 - safe.bottom) / 2 - 250), left: Math.round((1080 - IMG_W - 32) / 2), rot: -3 }]
     : [
         // chừa ~60 px cho nghiêng ±5°, băng keo và nhãn bút dạ thò ra ngoài ảnh
         { top: safe.top + 40, left: safe.side + 60, rot: -5 },
-        { top: 1920 - safe.bottom - 560, left: 1080 - safe.rail_w - IMG_W - 32 - 50, rot: 4 },
+        { top: 1920 - safe.bottom - 540, left: Math.max(safe.side + 30, 1080 - safe.rail_w - IMG_W - 32 - 40), rot: 4 },
       ];
   return (
     <AbsoluteFill style={{ opacity: fade, background: PALETTE.paper }}>
@@ -733,25 +735,29 @@ export const WipeFx: React.FC<{ item: GraphicItem; safe: Safe }> = ({ item, safe
   const sweep = interpolate(frame, [0.4 * fps, Math.max(0.4 * fps + 1, durationInFrames * 0.65)], [0, 1], {
     extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.bezier(0.65, 0, 0.35, 1),
   });
-  const BW = safeCenteredW(safe);
+  // khung nằm trong khoảng an toàn hẹp nhất (hàng cột nút): x từ side tới 1080 - rail_w
+  const left = safe.side + 20;
+  const BW = 1080 - safe.rail_w - safe.side - 40;
   const top = safe.top + 40;
   const BH = 1920 - safe.bottom - top - 40;
   const before = stills[0];
   const after = stills[1] ?? stills[0];
-  const img: React.CSSProperties = { position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" };
+  // ảnh "trước" quyết định kích thước khung (giữ tỉ lệ ảnh cắt, không cắt mất hai bên); ảnh "sau" phủ đúng khung đó
+  const img: React.CSSProperties = { display: "block", width: "100%", height: "auto", maxHeight: BH, objectFit: "cover" };
+  const imgOver: React.CSSProperties = { position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" };
   const tag = (text: string, side: "left" | "right", bg: string) => (
     <div style={{ position: "absolute", top: 24, [side]: 24, padding: "8px 26px", borderRadius: 999, background: bg,
                   color: "#FFFFFF", fontFamily: FONT_STACK, fontWeight: 900, fontSize: 44 }}>{text}</div>
   );
   return (
-    <AbsoluteFill style={{ opacity: fade, background: `radial-gradient(circle at 50% 45%, #5A1F49 0%, ${PALETTE.plum} 75%)`,
-                           alignItems: "center" }}>
-      <div style={{ position: "absolute", top, width: BW, height: BH, borderRadius: 28, overflow: "hidden",
+    <AbsoluteFill style={{ opacity: fade, background: `radial-gradient(circle at 50% 45%, #5A1F49 0%, ${PALETTE.plum} 75%)` }}>
+      <div style={{ position: "absolute", top, left, width: BW, height: BH, display: "flex", alignItems: "center" }}>
+      <div style={{ position: "relative", width: BW, borderRadius: 28, overflow: "hidden",
                     boxShadow: "0 24px 60px rgba(0,0,0,0.45)", background: "#000" }}>
         {before ? <Img src={staticFile(before.file)} style={img} /> : null}
         {after ? (
           <div style={{ position: "absolute", inset: 0, clipPath: `inset(0 ${(1 - sweep) * 100}% 0 0)` }}>
-            <Img src={staticFile(after.file)} style={img} />
+            <Img src={staticFile(after.file)} style={imgOver} />
           </div>
         ) : null}
         <div style={{ position: "absolute", top: 0, bottom: 0, left: `calc(${sweep * 100}% - 4px)`, width: 8,
@@ -759,6 +765,125 @@ export const WipeFx: React.FC<{ item: GraphicItem; safe: Safe }> = ({ item, safe
         {tag((before?.label || "Trước").toUpperCase(), "left", "rgba(0,0,0,0.55)")}
         {sweep > 0.55 ? tag((after?.label || "Sau").toUpperCase(), "right", PALETTE.keyBox) : null}
       </div>
+      </div>
+    </AbsoluteFill>
+  );
+};
+
+
+/** Thanh hẹn giờ đèn (skill v2): 2 hàng "10 PHÚT · ÁNH SÁNG XANH" / "5 PHÚT · ÁNH SÁNG ĐỎ",
+ *  hàng 2 sáng lên tại `rows[1].at` (giây tính từ đầu thẻ), mỗi hàng có thanh tiến độ. */
+export const LightTimerFx: React.FC<{ item: GraphicItem }> = ({ item }) => {
+  const frame = useCurrentFrame();
+  const { fps, durationInFrames } = useVideoConfig();
+  const fade = useFade();
+  const rows = item.rows?.length ? item.rows : [
+    { min: 10, title: "ÁNH SÁNG XANH", sub: "kích hoạt gel", color: "blue" as const, at: 0 },
+    { min: 5, title: "ÁNH SÁNG ĐỎ", sub: "làm dịu nướu", color: "red" as const, at: (durationInFrames / fps) * 0.55 },
+  ];
+  return (
+    <AbsoluteFill style={{ opacity: fade, alignItems: "center" }}>
+      <div style={{ position: "absolute", top: `${(item.y ?? 0.15) * 100}%`, width: 620, display: "flex",
+                    flexDirection: "column", gap: 14, fontFamily: FONT_STACK }}>
+        {rows.slice(0, 2).map((r, i) => {
+          const from = Math.round((r.at ?? 0) * fps);
+          const to = i + 1 < rows.length ? Math.round((rows[i + 1].at ?? durationInFrames / fps) * fps) : durationInFrames;
+          const on = spring({ frame: frame - from, fps, config: { damping: 15, stiffness: 180 } });
+          const prog = interpolate(frame, [from, Math.max(from + 1, to)], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+          const c = LIGHT[r.color];
+          const active = frame >= from;
+          return (
+            <div key={i} style={{ opacity: active ? 0.35 + 0.65 * on : 0.35, translate: `${interpolate(on, [0, 1], [-30, 0])}px 0px`,
+                                  background: PALETTE.plumCard, borderRadius: 26, padding: "16px 26px",
+                                  border: `3px solid rgba(${c.glow}, ${active ? 0.9 : 0.25})`,
+                                  boxShadow: active ? `0 0 30px rgba(${c.glow}, 0.45)` : "none" }}>
+              <div style={{ display: "flex", alignItems: "baseline", gap: 18 }}>
+                <span style={{ fontWeight: 900, fontSize: 64, color: c.solid }}>{r.min} PHÚT</span>
+                <span style={{ fontWeight: 900, fontSize: 34, color: "#FFFFFF" }}>{r.title}</span>
+              </div>
+              <div style={{ fontWeight: 700, fontSize: 30, color: "rgba(255,255,255,0.8)" }}>{r.sub}</div>
+              <div style={{ marginTop: 10, height: 10, borderRadius: 5, background: "rgba(255,255,255,0.18)" }}>
+                <div style={{ width: `${prog * 100}%`, height: "100%", borderRadius: 5, background: c.solid }} />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </AbsoluteFill>
+  );
+};
+
+/** Kinetic hook (skill v2, preset kinetic): 1–1,5 s đầu, từng cụm chữ cỡ 150 px đập lên trong vùng an toàn.
+ *  `words`: các cụm; cụm viết *như này* tô màu nhấn. */
+export const KineticFx: React.FC<{ item: GraphicItem; safe: Safe }> = ({ item, safe }) => {
+  const frame = useCurrentFrame();
+  const { fps, durationInFrames } = useVideoConfig();
+  const words = item.words?.length ? item.words : (item.label || "").split(/\s+/).filter(Boolean);
+  if (!words.length) return null;
+  const per = Math.max(1, Math.floor(durationInFrames / words.length));
+  const k = Math.min(words.length - 1, Math.floor(frame / per));
+  const hit = spring({ frame: frame - k * per, fps, config: { damping: 10, stiffness: 320 } });
+  const exit = interpolate(frame, [durationInFrames - 4, durationInFrames], [1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  const word = words[k];
+  const accent = /^\*.*\*$/.test(word);
+  return (
+    <AbsoluteFill style={{ opacity: exit, paddingTop: safe.top, paddingBottom: safe.bottom, boxSizing: "border-box",
+                           paddingLeft: safe.side, paddingRight: safe.side, alignItems: "center", justifyContent: "flex-start" }}>
+      <div style={{ marginTop: 120, fontFamily: FONT_STACK, fontWeight: 900, fontSize: 150, lineHeight: 1, textAlign: "center",
+                    textTransform: "uppercase", color: accent ? PALETTE.marker : "#FFFFFF", maxWidth: 1080 - 2 * safe.side,
+                    WebkitTextStroke: "12px #111111", paintOrder: "stroke fill",
+                    scale: interpolate(hit, [0, 1], [1.6, 1]), rotate: `${k % 2 ? 2 : -2}deg` }}>
+        {word.replace(/^\*|\*$/g, "")}
+      </div>
+    </AbsoluteFill>
+  );
+};
+
+/** Thẻ CTA cuối (skill v2): nút CTA + dòng phụ + huy hiệu LIVE tuỳ chọn, trong vùng an toàn (lệch trái ở hàng cột nút). */
+export const EndCardFx: React.FC<{ item: GraphicItem }> = ({ item }) => {
+  const frame = useCurrentFrame();
+  const { fps } = useVideoConfig();
+  const fade = useFade();
+  const enter = spring({ frame, fps, config: { damping: 12, stiffness: 200 } });
+  const pulse = 1 + 0.035 * Math.sin((frame / fps) * Math.PI * 3);
+  return (
+    <AbsoluteFill style={{ opacity: fade, alignItems: "center" }}>
+      <div style={{ position: "absolute", top: `${(item.y ?? 0.5) * 100}%`, width: 620, display: "flex", flexDirection: "column",
+                    alignItems: "center", gap: 14, fontFamily: FONT_STACK, scale: interpolate(enter, [0, 1], [0.7, 1]) }}>
+        {item.live ? (
+          <div style={{ padding: "6px 22px", borderRadius: 10, background: "#FF2D55", color: "#FFFFFF", fontWeight: 900,
+                        fontSize: 34, letterSpacing: "0.12em" }}>● LIVE</div>
+        ) : null}
+        <div style={{ borderRadius: 999, background: PALETTE.keyBox, color: "#FFFFFF", fontWeight: 900,
+                      fontSize: 64, textTransform: "uppercase", boxShadow: "0 18px 40px rgba(0,0,0,0.35)", scale: pulse,
+                      maxWidth: 620, boxSizing: "border-box", textAlign: "center", lineHeight: 1.1, whiteSpace: "nowrap",
+                      padding: "20px 40px" }}>
+          {plainText(item.label || "Bấm giỏ hàng")}
+        </div>
+        {item.sub ? (
+          <div style={{ padding: "8px 22px", borderRadius: 14, background: PALETTE.plumCard, color: PALETTE.cardText,
+                        fontWeight: 700, fontSize: 44 }}>{plainText(item.sub)}</div>
+        ) : null}
+      </div>
+    </AbsoluteFill>
+  );
+};
+
+/** Chuyển cảnh preset vox ở ranh giới chương: tờ giấy có hạt lướt ngang qua khung trong ~0,3 s (không nháy trắng). */
+export const PaperSwipeFx: React.FC = () => {
+  const frame = useCurrentFrame();
+  const { durationInFrames } = useVideoConfig();
+  const x = interpolate(frame, [0, durationInFrames], [1180, -1180], { easing: Easing.inOut(Easing.cubic) });
+  return (
+    <AbsoluteFill style={{ translate: `${x}px 0px`, rotate: "-3deg", scale: 1.15 }}>
+      <AbsoluteFill style={{ background: PALETTE.paper, boxShadow: "0 0 60px rgba(0,0,0,0.35)" }} />
+      <svg width={1080} height={1920} style={{ position: "absolute", inset: 0, opacity: 0.35, mixBlendMode: "multiply" }}>
+        <filter id="grain2">
+          <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves={2} seed={7} />
+          <feColorMatrix type="saturate" values="0" />
+        </filter>
+        <rect width="100%" height="100%" filter="url(#grain2)" />
+      </svg>
     </AbsoluteFill>
   );
 };

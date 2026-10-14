@@ -12,6 +12,7 @@ from vf.edl import TextOverlay, Variant, output_duration
 from vf.paths import BRAND_DIR, LIBRARY, ROOT
 from vf.qa import _norm, _pattern, _strip
 from vf.safezone import SAFE
+from vf.tokens import font_file, load_tokens
 from vf.transcribe import Word
 
 REMOTION_DIR = ROOT / "remotion"
@@ -154,11 +155,15 @@ def _brand_props(brand: Path) -> dict:
     cfg = Path(brand) / "brand.json"
     if cfg.exists():
         props.update(json.loads(cfg.read_text(encoding="utf-8")))
-    fonts = sorted(p for p in Path(brand).glob("*") if p.suffix.lower() in (".ttf", ".otf", ".woff", ".woff2"))
-    if fonts:
-        dst = REMOTION_DIR / "public" / f"brand-font{fonts[0].suffix.lower()}"
-        if not dst.exists() or dst.stat().st_mtime < fonts[0].stat().st_mtime:
-            shutil.copy(fonts[0], dst)
+    # font chính theo thứ tự ưu tiên trong tokens.json (Be Vietnam Pro → Montserrat), thiếu thì file đầu tiên
+    font = font_file("main", brand)
+    if font is None:
+        fonts = sorted(p for p in Path(brand).glob("*") if p.suffix.lower() in (".ttf", ".otf", ".woff", ".woff2"))
+        font = fonts[0] if fonts else None
+    if font is not None:
+        dst = REMOTION_DIR / "public" / f"brand-font{font.suffix.lower()}"
+        if not dst.exists() or dst.stat().st_mtime < font.stat().st_mtime or dst.stat().st_size != font.stat().st_size:
+            shutil.copy(font, dst)
         props["fontFile"] = dst.name
     return props
 
@@ -194,6 +199,8 @@ def render_overlay(
         "overlays": [o.model_dump() for o in ovs],
         "graphics": _graphics_props(v),
         "safe": SAFE.props(),  # vùng an toàn TikTok (px) — Remotion bố cục thẻ toàn màn hình, nhãn trong vùng này
+        "preset": v.preset or "pink",  # bảng màu theo preset (library/brand/tokens.json)
+        "tokens": {k: load_tokens()[k] for k in ("colors", "presets")},
         **_brand_props(brand),
     }
     props_path = Path(props_path) if props_path else out.with_suffix(".json")

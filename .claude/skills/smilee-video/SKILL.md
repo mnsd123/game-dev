@@ -1,106 +1,92 @@
 ---
 name: smilee-video
-description: Use when có source gốc mới trong thư mục Drive EDIT/"source gốc" của Smilee, hoặc người dùng nói "có source mới", "dựng video mới", "edit lô mới", "làm video từ source mới", hoặc gõ /smilee-video.
+description: Use when có source gốc mới trong thư mục Drive EDIT/"source gốc" của Smilee, hoặc người dùng nói "có source mới", "dựng video mới", "edit lô mới", "edit lô ...", "làm video từ source mới", đưa video gốc Smilee cần dựng, hoặc gõ /smilee-video.
 ---
 
-# Dựng video Smilee từ source gốc mới (trọn quy trình) — v1
+# /smilee-video — v2 (2026-10-14)
 
-> **v1.4 (2026-10-14)** — vùng an toàn TikTok bắt buộc (tự đặt + QA alpha), SFX tự động, preset dựng, bản cắt ngắn, CTA giữa video, kiểm tra sáng tạo; graphic mới `shade`, `wipe`. Theo nghiên cứu xu hướng quảng cáo TikTok 2026.
-> **v1.3 (2026-10-14)** — phong cách Vox: zoom ống kính bám răng + khoanh tay + bút dạ, ảnh ghép giấy trước/sau; chỉ thêm đồ hoạ ở đoạn nguồn trơn.
-> **v1.2 (2026-10-14)** — dựng theo `library/style-guide.md` (ĐÃ DUYỆT, học từ `EDIT/video mẫu tham khảo/`): thẻ chữ hai dòng tím mận, nhãn TRƯỚC/SAU, thẻ đếm ngày, hàm răng vector minh hoạ đèn; cảnh ≥ 1.2 s.
-> **v1 (2026-10-14)** — sau lô pilot lo-01. Mới so với bản đầu: tránh "vấp hình" ở điểm chuyển cảnh, chữ font Montserrat có nền + tự né mặt, hiệu ứng minh hoạ đèn xanh/đỏ và răng vàng → trắng, phiên âm GPU trên Windows. Lịch sử: `CHANGELOG.md` cùng thư mục.
+Bạn là editor quảng cáo TikTok cho kit trắng răng Smilee. Kết quả: N file MP4 9:16 trong `EDIT/out/<lô>/` (Remotion + ffmpeg), kèm `*_sheet.png` (viền vùng an toàn), `qa.json`, `review.csv`.
 
-Điểm vào duy nhất mỗi khi có video quay mới. Kết quả: N file MP4 9:16 trong `EDIT/out/<lô>/` (chữ động bằng Remotion + ffmpeg, không phụ đề toàn bộ lời, chỉ highlight hook, cam kết, lợi ích, CTA), kèm ảnh tổng quan, `qa.json`, `review.csv`.
+> **v2** gộp bản đóng gói từ Claude chat (`smilee-video-SKILL.md`) với v1.4 của repo, theo quyết định của người dùng 2026-10-14: không chặn claim, không disclaimer, chữ chỉ ở khoảng không có chữ in sẵn, cảnh ≥ 1,2 s và không flash, 45 s – 1 phút 40 đủ ý, 8 preset. Lịch sử: `CHANGELOG.md`.
 
-Chạy mọi lệnh ở gốc repo (thư mục có `vf.toml`). Không bao giờ sửa, xoá, di chuyển file trong `source gốc` và `video tham khảo`.
+Chạy mọi lệnh ở gốc repo (thư mục có `vf.toml`; `vf` = `.venv\Scripts\vf.exe` nếu chưa activate venv). Không bao giờ sửa, xoá, di chuyển file trong `source gốc`, `video tham khảo`, `video mẫu tham khảo`.
 
-## 0. Kiểm tra môi trường (chỉ dừng khi có LỖI)
+## Đọc trước khi làm (bắt buộc, mỗi lô)
 
-```
-vf doctor
-```
-- Lệnh `vf` nằm trong `.venv`: Windows gọi `.venv\Scripts\vf.exe`, Mac/Linux gọi `.venv/bin/vf`, nếu chưa activate venv.
-- Chưa có `.venv` hoặc `vf.toml` trên Windows → chạy `powershell -ExecutionPolicy Bypass -File scripts\setup-windows.ps1` (tự cài ffmpeg, Python, Node, thư viện, Remotion, tự tìm thư mục EDIT), rồi chạy lại `vf doctor`.
-- Dòng `LỖI` → sửa theo gợi ý trên dòng đó rồi chạy lại. Dòng `CẢNH BÁO` → báo người dùng một dòng và chạy tiếp.
-- Repo phải ở **đường dẫn ngắn** (ví dụ `C:\dev\game-dev`). Đường dẫn dài (thư mục tạm của app, OneDrive lồng sâu) làm `pip install` lỗi `WinError 206` vì Windows giới hạn 260 ký tự.
-- Vừa cài Node bằng setup mà `vf doctor` vẫn báo "chưa cài Remotion" → chỉ là PATH của phiên cũ; mở terminal mới (hoặc nạp lại PATH) rồi chạy lại.
-- Đang ở phiên **cloud** và `drive_root` không tồn tại → dừng, báo người dùng mở phiên **Local** trên máy có Google Drive for Desktop (phiên cloud không đọc được Drive).
+1. `library/style-guide.md` — luật dựng, preset, typography, vùng an toàn. **Ưu tiên cao nhất.**
+2. `library/brand/tokens.json` — màu, cỡ chữ, thời gian, vùng an toàn, preset, auto SFX (máy đọc).
+3. `library/product.md` — hồ sơ sản phẩm, nỗi đau, lợi ích, cách dùng (giữ nguyên các mục `[CẦN XÁC NHẬN]`).
+4. `library/hooks.md`, `library/learnings.md`, `library/learnings-stats.md` (nếu có) — điều đã học.
+5. `jobs/<lô>/brief.yaml`.
 
-## 1. Xem có gì mới
+## Quy trình
 
-```
-vf status
-```
-- Không có nguồn nào ghi `MỚI` → hỏi người dùng muốn dựng lại từ nguồn cũ hay chờ thêm nguồn. Dừng.
-- Có lô cũ đã chấm điểm mà chưa học → chạy skill `video-learnings` TRƯỚC, để lô mới dùng bài học mới.
+### 0. Môi trường — `vf doctor`
+Dòng `LỖI` → sửa theo gợi ý rồi chạy lại; `CẢNH BÁO` → báo một dòng, chạy tiếp. Thiếu SFX → chạy `vf make-sfx` (SFX tạm). Chưa có `.venv`/`vf.toml` trên Windows → `powershell -ExecutionPolicy Bypass -File scripts\setup-windows.ps1`. Phiên cloud không đọc được Drive → báo người dùng mở phiên Local.
 
-## 2. Tạo lô và brief
+### 1. Có gì mới — `vf status`
+Không có nguồn `MỚI` → hỏi dựng lại nguồn cũ hay chờ. Có lô đã chấm mà chưa học → chạy skill `video-learnings` TRƯỚC.
 
-```
-vf new auto
-```
-Lệnh tạo `jobs/lo-NN/brief.yaml`, `source_roles` điền sẵn các nguồn mới (mặc định `a_roll`).
+### 2. Lô và brief — `vf new auto`
+Yêu cầu gõ kèm lệnh là ràng buộc cứng, ghi vào brief trước khi hỏi ("dưới X giây" → `target_seconds` = X ÷ 1,1 làm tròn xuống). Hỏi người dùng MỘT lần, gộp một tin nhắn, mỗi mục có mặc định để trả lời "ok":
+- thời lượng (mặc định theo source, 45 s – 1 phút 40, đủ ý), số biến thể (mặc định 6 = 3 kiểu hook × 2 preset), bản cắt ngắn `cutdown_seconds` (mặc định không)
+- preset từng biến thể (style guide mục 6), thông điệp một câu, CTA
+- vai trò từng nguồn (a_roll / b_roll), ý hook nếu có
 
-Yêu cầu người dùng gõ kèm lệnh (ví dụ `/smilee-video cắt xuống dưới 1 phút 30 giây`) là ràng buộc cứng, ghi vào brief trước khi hỏi:
-- Giới hạn thời lượng "dưới X giây" → `target_seconds` = X ÷ 1.1, làm tròn xuống (dưới 90 s → 80), vì pipeline cho phép ±10%. Ghi thêm X vào `must_keep`/ghi chú và kiểm tra mọi biến thể < X ở bước 5.
-- Yêu cầu khác (số bản, kiểu hook, preset, nguồn nào dùng) → điền thẳng vào trường tương ứng, không hỏi lại.
+"Tự quyết" → tự điền từ `product.md`, `hooks.md`, `learnings-stats.md`.
 
-Hỏi người dùng MỘT lần, gộp vào một tin nhắn, mỗi mục kèm đề xuất mặc định để họ chỉ cần trả lời "ok":
-- mục tiêu (awareness / education / conversion), thời lượng, số biến thể (mặc định 3), bản cắt ngắn `cutdown_seconds` (mặc định 22 s khi thời lượng > 30 s; "không" để bỏ)
-- preset cho từng biến thể (style guide mục 11; mặc định chọn 3 preset khác nhau hợp nội dung nguồn)
-- thông điệp một câu, CTA
-- vai trò từng nguồn mới (a_roll có lời nói / b_roll chỉ có hình), ý hook nếu có
-
-Nếu người dùng nói "tự quyết", tự điền dựa trên `library/product.md`, `library/hooks.md` rồi ghi vào brief.
-
-## 3. Phân tích
-
+### 3. Phân tích nguồn
 ```
 vf analyze lo-NN
+vf sheet "work/<nguồn>/normalized.mp4" --every 0.5
 ```
-Đọc kết quả in ra: nguồn nào không có tiếng thì đổi vai trò thành `b_roll`.
-Lệnh cũng ghi `work/<nguồn>/scenes.json` (điểm chuyển cảnh). Nguồn thường là clip KOL **đã dựng sẵn** (nhiều cảnh ngắn, sticker) — xem ảnh ghép khung hình trước khi viết edl để biết nội dung thật, có thể khác brief (ví dụ lo-01 là clip quà 20/10): khi đó bám nội dung thật, giữ lợi ích sản phẩm bằng chữ, và báo người dùng.
-**Nguồn đã có chữ in sẵn trên hình** (phụ đề nhấn, tiêu đề, sticker chữ) → thêm tên file vào `text_sources` trong brief. Sau đó xem khung hình từng giây của các đoạn định dùng và ghi khoảng không có chữ in sẵn vào `text_free`: chỉ ở đó mới thêm thẻ chữ theo style guide (người dùng chọn 2026-10-14). Ngoài các khoảng đó render tự bỏ chữ (kể cả cam kết tự động); hiệu ứng hình giữ nhưng bỏ nhãn. Nguồn đã có cảnh before/after thật (bảng so màu) thì dùng cảnh thật, không thêm icon răng minh hoạ. (Yêu cầu người dùng 2026-10-14.)
-**Vùng an toàn chỉ áp dụng cho phần Claude thêm vào** (chữ, thẻ, graphic, SFX, phụ đề). Không thay đổi gì có sẵn trong source gốc: chữ in sẵn, sticker, phụ đề KOL nằm ở đâu thì để nguyên, và không chọn hay bỏ đoạn vì vị trí chữ in sẵn (người dùng chốt 2026-10-14).
+`analyze` chuẩn hoá, phiên âm từng từ, dò điểm chuyển cảnh (`scenes.json`). `sheet` tạo ảnh tổng quan có mốc giờ nguồn + viền vùng an toàn. Đọc hết các trang sheet và ghi:
+- **Chữ in sẵn**: nguồn vào `text_sources`; khoảng giờ KHÔNG có chữ in sẵn vào `text_free` — chỉ thêm chữ ở đó.
+- **Cảnh tiền** (cận răng, trước/sau, bật đèn, mở hộp) → `protect: true` khi dùng.
+- **Chương** của từng đoạn định dùng (nỗi đau, lợi ích, hiệu quả, bằng chứng, nhanh, tiết kiệm, CTA).
+- Toạ độ răng cho `callout` (hoặc dùng `zoom_to` + `track: "teeth"` để ống kính bám răng rồi khoanh giữa khung).
+- Nguồn là clip KOL đã dựng sẵn, nội dung có thể khác brief → bám nội dung thật, báo người dùng. Không dùng đoạn có clip người sáng tạo khác chèn vào.
 
-## 4. Viết kịch bản dựng
+Nội dung có sẵn trong source (chữ, sticker, phụ đề KOL) giữ nguyên; vùng an toàn chỉ áp cho phần Claude thêm vào.
 
-**REQUIRED SUB-SKILL:** Làm theo skill `video-batch-edit`, bước 2–3, để viết `jobs/lo-NN/edl.json`: đọc đủ ngữ cảnh, mỗi biến thể một kiểu hook, chữ động chỉ ở đoạn quan trọng, cắt theo điểm chuyển cảnh, có hiệu ứng minh hoạ ở đoạn nói về đèn/kết quả. 3 cam kết kết quả được tự phát hiện trong lời nói và tự highlight.
+### 4. Viết `jobs/lo-NN/edl.json`
+**REQUIRED SUB-SKILL:** skill `video-batch-edit` (bước 2–3) — schema, luật từng trường, ví dụ.
+Tóm tắt: mỗi biến thể đúng 1 `preset`, khác nhau rõ về kiểu hook hoặc preset; mọi đoạn có `chapter`, đủ ý; hook ≤ 3 s, khung đầu là hình mạnh nhất, chữ đầu tiên ≤ 0,3 s; cảnh ≥ 1,2 s; CTA giữa video + `end_card` cuối; cam kết càng nổi bật càng tốt; `rationale` 1–2 câu. Bản số lượng GMV Max: khối `matrix` rồi `vf expand lo-NN`.
 
-## 5. Render và tự kiểm tra
-
+### 5. Render và tự kiểm tra
 ```
-vf render lo-NN
+vf render lo-NN            # hoặc --only <id> để render lại riêng
 ```
-- `vf doctor` báo "chưa có SFX" → video sẽ thiếu âm thanh dựng: báo người dùng một dòng (cần bộ SFX có giấy phép trong `library/brand/sfx/`), vẫn render.
-- **Vùng an toàn** (chỉ phần Claude thêm vào): mọi dòng `vùng an toàn: …` trong `qa.json` là lỗi phải sửa trước khi báo xong (chữ/hình bị giao diện TikTok che). Viền đỏ trên `*_sheet.png` = vùng an toàn.
-- Dòng `~ …` khi render là gợi ý sáng tạo (hook, CTA, tốc độ đọc, âm thanh, hook trùng): sửa nếu được, không thì nêu lý do ở bước 6.
-- Có giới hạn thời lượng từ người dùng thì mọi biến thể phải ngắn hơn giới hạn đó; vượt thì cắt bớt đoạn trong edl và render lại.
-- Xem từng `*_sheet.png` và `qa.json`. Biến thể lỗi thì sửa edl rồi chạy `vf render lo-NN --only <id>`.
-- Dòng `· đoạn N: mẩu cảnh …` khi render: pipeline đã tự giữ khung hình kề bên cho mẩu cảnh < 0.5 s; nhiều dòng như vậy thì dời mép đoạn trong edl về đúng điểm chuyển cảnh cho gọn.
-- Render một biến thể mất ~4 phút (Remotion); lệnh chạy lâu thì cho chạy nền.
-- Bị `ClaimViolation` thì sửa chữ hoặc đoạn trong edl. Không sửa `forbidden.txt` hay `claims_pending.txt`.
+- Render tự: kéo dài chữ cho đủ đọc, đặt chữ/đồ hoạ trong vùng an toàn và né mặt, chuyển cảnh theo preset ở ranh giới chương, SFX theo sự kiện, nhạc tự hạ khi có giọng.
+- `qa.json`: `duration_ok`, `size_ok`, `loudness_ok` True và `notes` rỗng. Dòng `vùng an toàn: …` là lỗi phải sửa.
+- Dòng `~ …` (`creative` trong qa.json): hook, CTA, đủ ý, protect, nhịp cắt, trộn hệ chữ, âm thanh, hook trùng, `tự sửa: …` — sửa nếu được, không thì ghi lý do vào `rationale`.
+- **Mở từng `*_sheet.png`**: chữ không đè chữ nguồn, không bị cắt, trong viền đỏ, khoanh đúng răng, một hệ chữ.
+- Render một biến thể ~4 phút (Remotion) — lô nhiều biến thể thì cho chạy nền.
 
-## 6. Báo người dùng
+### 6. Báo người dùng
+Đường dẫn `EDIT/out/lo-NN/`; mỗi biến thể một dòng `id — preset — kiểu hook — câu hook — thời lượng — ý tưởng`; ghi chú sáng tạo còn để lại. Nhắc chấm `score` + `notes` **riêng từng biến thể** trong `review.csv`, và sau khi đăng điền số liệu TikTok (`views`, `retention_3s`, `view_2s`, `view_6s`, `avg_watch_s`, `ctr`, `cvr`, `cost_per_order`).
 
-- Đường dẫn `EDIT/out/lo-NN/`.
-- Mỗi biến thể một dòng: `id — kiểu hook — preset — câu hook — thời lượng — ý tưởng`.
-- Gợi ý sáng tạo còn để lại (nếu có) và lý do.
-- Nhắc chấm `score` (1–5) + `notes` trong `review.csv`, và sau khi đăng thì điền `views`, `retention_3s` (% còn xem ở giây 3, lấy trong TikTok Analytics/Ads Manager) — vòng học cần số liệu thật, không chỉ điểm cảm tính. Lần sau có source mới, skill này tự chạy `video-learnings` trước (bước 1).
+## Học từ kết quả
+Người dùng nói "chạy video-learnings" hoặc đã điền `review.csv` → skill `video-learnings` (`vf learn --write` → `library/learnings-stats.md` theo preset × kiểu hook × độ dài; cập nhật `learnings.md`, `hooks.md`). Dùng kết quả để chọn preset/hook cho lô sau — preset nào thắng thì dùng nhiều hơn, thua thì sửa hoặc bỏ.
+
+## Không bao giờ
+- Chỉnh màu/làm trắng răng thật trong footage; tạo before/after, review, số liệu không có trong tư liệu.
+- Dùng lại hình, nhạc, giọng, câu chữ nguyên văn của video tham khảo.
+- Trộn nhiều preset trong một biến thể; meme/sticker trong preset pink/vox/proof.
+- Flash trắng; chữ đè chữ có sẵn trong nguồn.
 
 ## Lỗi thường gặp
 
 | Triệu chứng | Cách xử lý |
 |---|---|
-| `vf status` không thấy file vừa bỏ vào Drive | Drive chưa đồng bộ hoặc chưa bật *Available offline*; kiểm tra `drive_root` trong `vf.toml` |
-| Tiếng và hình lệch | Xoá `work/<tên file nguồn>/normalized.mp4` rồi chạy lại `vf analyze` |
-| Chữ không động | Chưa `npm install` trong `remotion/`; hoặc thêm `--static-text` để chủ ý dùng chữ tĩnh |
-| `cublas64_12.dll is not found` khi phân tích | Thiếu thư viện CUDA: `.venv\Scripts\python -m pip install nvidia-cublas-cu12 "nvidia-cudnn-cu12==9.*"` (đã có trong `pyproject.toml`; `vf/transcribe.py` tự nạp DLL) |
-| `pip install` lỗi `WinError 206` | Đường dẫn repo quá dài → clone lại vào thư mục ngắn như `C:\dev\game-dev` |
-| Video "vấp", vài khung hình cảnh khác lóe lên | Mép đoạn rơi sát điểm chuyển cảnh; đã tự xử lý khi render, chỉnh edl theo `scenes.json` để gọn hơn |
-| Chữ lỗi dấu tiếng Việt | Thiếu font trong `library/brand/` (mặc định `Montserrat-ExtraBold.ttf`, giấy phép OFL) |
-| Phiên âm rỗng | Lần trước chạy `--no-transcribe`; chạy lại `vf analyze lo-NN` (tự phiên âm lại) |
-| Video mẫu ở `EDIT/video mẫu tham khảo/` (không phải `video tham khảo`) | Thư mục mẫu người dùng đặt; chỉ học kỹ thuật, không lấy hình/nhạc/giọng |
-| `vùng an toàn: chữ/hình lấn vùng …` | Rút ngắn chữ, bỏ `y` ghi tay, hoặc dời graphic; hạt sáng/vầng sáng mờ không bị tính. Số liệu vùng an toàn ở `vf/safezone.py` (một nguồn duy nhất) |
-| Video không có tiếng SFX | Chưa có file trong `library/brand/sfx/` (tên: whoosh, marker, paper, tick, swipe, shimmer, pop) hoặc edl đặt `"sfx_auto": false` |
-| Chưa có `library/style-guide.md` đã duyệt | Vẫn dựng được, báo người dùng; muốn học phong cách thì chạy skill `video-style-learning` |
+| `vf status` không thấy file vừa bỏ vào Drive | Drive chưa đồng bộ / chưa bật *Available offline*; kiểm tra `drive_root` trong `vf.toml` |
+| Tiếng và hình lệch | Xoá `work/<nguồn>/normalized.mp4` rồi chạy lại `vf analyze` |
+| Chữ không động | Chưa `npm install` trong `remotion/`; hoặc `--static-text` để chủ ý dùng chữ tĩnh |
+| `cublas64_12.dll is not found` | `.venv\Scripts\python -m pip install nvidia-cublas-cu12 "nvidia-cudnn-cu12==9.*"` |
+| `pip install` lỗi `WinError 206` | Repo ở đường dẫn quá dài → clone vào thư mục ngắn như `C:\dev\game-dev` |
+| Video "vấp", vài khung cảnh khác lóe lên | Mép đoạn sát điểm chuyển cảnh; render tự xử lý, chỉnh edl theo `scenes.json` cho gọn |
+| Chữ lỗi dấu tiếng Việt | Thiếu font: `library/brand/fonts/BeVietnamPro-*.ttf` hoặc `library/brand/Montserrat-ExtraBold.ttf` |
+| `vùng an toàn: chữ/hình lấn vùng …` | Rút chữ, bỏ `y` ghi tay, dời graphic. Số liệu: `tokens.json` → `vf/safezone.py` |
+| Không có tiếng SFX | `vf make-sfx`; preset `ugc` hoặc `"sfx_auto": false` thì cố ý không có |
+| `ClaimViolation` | Chỉ còn chặn cụm do chính brief của lô ghi trong `forbidden` — sửa chữ hoặc bỏ cụm khỏi brief |
+| Phiên âm rỗng | Lần trước chạy `--no-transcribe`; chạy lại `vf analyze lo-NN` |

@@ -41,7 +41,7 @@ def test_text_box_wraps_long_text():
 
 def test_best_y_avoids_face():
     face_top = ([(0.2, 0.0, 0.8, 0.45)], None)
-    y = best_y([face_top], 0.8, 0.08, 0.10, [])
+    y = best_y([face_top], 0.6, 0.08, 0.10, [])  # nửa dưới chỉ rộng ~0.61 (cột nút phải 300 px)
     assert y >= 0.45 and _overlap((0.1, y, 0.9, y + 0.08), face_top[0][0]) == 0
 
 

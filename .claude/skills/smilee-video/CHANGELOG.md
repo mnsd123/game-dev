@@ -1,5 +1,31 @@
 # Lịch sử skill smilee-video
 
+## v2 — 2026-10-14 (gộp bản đóng gói từ Claude chat `smilee-video-SKILL.md` vào vf + Remotion)
+
+Người dùng chốt các xung đột giữa bản chat và repo:
+
+| Xung đột | Quyết định | Thay đổi |
+|---|---|---|
+| Kiến trúc: bản chat viết cho `tools/render_edl.py` (Pillow) | Đưa luật v2 vào vf + Remotion | Không xây bộ tools/ mới; thêm thành phần, lint, lệnh vào `vf/` và `remotion/src/` |
+| Claim: bản chat chặn tới khi có bằng chứng; repo không chặn 3 cam kết | Không chặn gì, không cảnh báo, cam kết càng nổi bật càng tốt | Bỏ kiểm `forbidden.txt` / `claims_pending.txt` (file giữ làm tham khảo); chỉ chặn cụm brief của lô ghi trong `forbidden` |
+| Disclaimer, nhãn Quảng cáo, nhãn AI | Bỏ hết | Không có thành phần `disclaimer`, không trường `ad_label`/`ai_content` |
+| Chữ in sẵn: bản chat cho đặt khác vùng dọc | Giữ cũ: chỉ thêm ở khoảng `text_free` | Không đổi |
+| Nhịp: bản chat đoạn ≥ 0,8 s + flash | Giữ feedback cũ: cảnh ≥ 1,2 s, không flash | `tokens.timing.scene_min_s` 1,2; proof/gift dùng whip |
+| Độ dài: bản chat 20–30 s, 6 biến thể | 45 s – 1 phút 40 tuỳ source, ±10 %, phải đủ ý | `content_checklist` + lint chương; mặc định 6 biến thể |
+| Preset: bản chat 6, repo v1.4 6 khác | Gộp: pink, vox, kinetic, proof, ugc, gift, routine, reply; học dần | `tokens.presets`; result_rewind → proof, beat → kinetic |
+
+Lấy từ bản chat (không xung đột):
+- `library/brand/tokens.json` — nguồn thông số duy nhất (màu, cỡ chữ, thời gian, vùng an toàn, audio, auto SFX, preset, font).
+- Vùng an toàn phải 300 px khi y > 840 (chặt hơn v1.4); chữ nửa dưới lệch trái (`xc`).
+- EDL: `chapter`, `protect`, `rapid`; thành phần mới `light_timer`, `kinetic` (kinetic hook), `end_card`; chữ nhấn `*accent*` / `[accent2]`; bảng màu theo preset.
+- Lint (cảnh báo, không chặn): chữ đầu tiên ≤ 0,3 s, giữ chữ tối thiểu (tự sửa), không cắt 0,4 s sau chữ, protect ≥ 2,5 s, đổi nhịp ≤ 4 s, CTA 3 s cuối, trộn hệ chữ, chương còn thiếu.
+- Chuyển cảnh ở ranh giới chương theo preset: whip (ffmpeg), paper (`paper_swipe`, Remotion), cut.
+- Âm thanh: SFX theo sự kiện (`tokens.auto_sfx`), `vf make-sfx` tạo SFX tạm bằng numpy, nhạc tự hạ khi có giọng (sidechain).
+- `vf sheet` (ảnh tổng quan có mốc giờ + viền vùng an toàn), `vf expand` (ma trận hooks × bodies × ctas × presets cho GMV Max), `vf learn --write` (`library/learnings-stats.md` theo preset × hook × độ dài); `review.csv` thêm `preset`, `length_s` và cột số liệu TikTok.
+- Font theo `tokens.fonts` (Be Vietnam Pro nếu có file, không thì Montserrat).
+
+Chưa làm: phụ đề từng từ đổi màu theo preset, chữ có chân nghiêng (Lora) cho dòng dẫn Vox, các hiệu ứng ở style guide mục 7 "Chưa có".
+
 ## v1.4 — 2026-10-14 (nghiên cứu xu hướng quảng cáo TikTok 2026 + yêu cầu vùng an toàn)
 
 | Vấn đề / gợi ý | Thay đổi |
