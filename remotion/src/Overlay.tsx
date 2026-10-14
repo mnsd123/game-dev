@@ -13,12 +13,54 @@ import {
   useCurrentFrame,
   useVideoConfig,
 } from "remotion";
-import { LightFx, WhitenFx } from "./Graphics";
-import { Colors, DEFAULT_COLORS, FONT_STACK, OverlayItem, OverlayProps } from "./types";
+import { CounterFx, LightFx, TeethFx, WhitenFx } from "./Graphics";
+import { Colors, DEFAULT_COLORS, FONT_STACK, OverlayItem, OverlayProps, PALETTE } from "./types";
 
 // khớp FONT_PX / PAD_PX trong vf/placement.py (Python ước lượng chiều cao để chọn chỗ đặt)
-const FONT_PX: Record<OverlayItem["style"], number> = { hook: 80, commit: 72, label: 54, cta: 58, plain: 60 };
-const PAD_PX: Record<OverlayItem["style"], number> = { hook: 18, commit: 22, label: 16, cta: 20, plain: 14 };
+const FONT_PX: Record<OverlayItem["style"], number> = { hook: 80, commit: 72, label: 54, cta: 58, plain: 60, lower: 72, tag: 50 };
+const PAD_PX: Record<OverlayItem["style"], number> = { hook: 18, commit: 22, label: 16, cta: 20, plain: 14, lower: 22, tag: 12 };
+const SUB_PX = 38;
+
+/** Thẻ hai dòng (style guide mục 4): nền tím mận, dòng chính hồng viết hoa, dòng phụ trắng chữ thường. */
+const LowerCard: React.FC<{ item: OverlayItem }> = ({ item }) => {
+  const frame = useCurrentFrame();
+  const { fps, durationInFrames } = useVideoConfig();
+  const enter = spring({ frame, fps, config: { damping: 16, stiffness: 190 } });
+  const exit = interpolate(frame, [durationInFrames - EXIT_FRAMES, durationInFrames], [1, 0], {
+    extrapolateLeft: "clamp", extrapolateRight: "clamp",
+  });
+  const subIn = interpolate(frame, [5, 12], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  const isTag = item.style === "tag";
+  return (
+    <AbsoluteFill style={{ alignItems: "center" }}>
+      <div
+        style={{
+          position: "absolute",
+          top: item.y != null ? `${item.y * 100}%` : TOP[item.position],
+          maxWidth: 940,
+          textAlign: "center",
+          fontFamily: FONT_STACK,
+          padding: `${PAD_PX[item.style]}px ${isTag ? 34 : 40}px`,
+          borderRadius: isTag ? 999 : 26,
+          background: isTag ? PALETTE.keyBox : PALETTE.plumCard,
+          boxShadow: "0 14px 34px rgba(0,0,0,0.35)",
+          opacity: Math.min(1, enter * 1.4) * exit,
+          translate: `0px ${interpolate(enter, [0, 1], [36, 0])}px`,
+          scale: isTag ? interpolate(enter, [0, 1], [0.6, 1]) : 1,
+          rotate: isTag ? "-4deg" : "0deg",
+        }}
+      >
+        <div style={{ fontWeight: 900, fontSize: FONT_PX[item.style], lineHeight: 1.12, color: isTag ? "#FFFFFF" : PALETTE.pink,
+                      textTransform: "uppercase", letterSpacing: "0.01em" }}>
+          {item.text}
+        </div>
+        {item.sub ? (
+          <div style={{ marginTop: 6, fontWeight: 700, fontSize: SUB_PX, color: "#FFFFFF", opacity: subIn }}>{item.sub}</div>
+        ) : null}
+      </div>
+    </AbsoluteFill>
+  );
+};
 const EXIT_FRAMES = 6;
 
 const TOP: Record<OverlayItem["position"], string> = { top: "12%", center: "42%", bottom: "70%" };
@@ -175,7 +217,8 @@ export const Overlay: React.FC<OverlayProps> = ({ overlays, graphics, fontFile, 
         const dur = Math.max(1, Math.round(g.end * fps) - from);
         return (
           <Sequence key={`g${i}`} from={from} durationInFrames={dur} name={`${g.kind} ${g.label}`}>
-            {g.kind === "light" ? <LightFx item={g} /> : <WhitenFx item={g} />}
+            {g.kind === "light" ? <LightFx item={g} /> : g.kind === "teeth" ? <TeethFx item={g} />
+              : g.kind === "counter" ? <CounterFx item={g} /> : <WhitenFx item={g} />}
           </Sequence>
         );
       })}
@@ -184,7 +227,7 @@ export const Overlay: React.FC<OverlayProps> = ({ overlays, graphics, fontFile, 
         const dur = Math.max(1, Math.round(o.end * fps) - from);
         return (
           <Sequence key={i} from={from} durationInFrames={dur} name={o.text}>
-            <Item item={o} colors={c} />
+            {o.style === "lower" || o.style === "tag" ? <LowerCard item={o} /> : <Item item={o} colors={c} />}
           </Sequence>
         );
       })}

@@ -93,23 +93,35 @@ def plan_overlays(v: Variant, words_by_source: dict[str, list[Word]]) -> list[Te
     return _no_overlap(sorted(planned, key=lambda o: o.start))
 
 
-def strip_text(v: Variant, text_sources: set[str]) -> Variant:
-    """Nguồn đã có chữ in sẵn: bỏ mọi chữ chồng lên đoạn của nguồn đó (kể cả cam kết tự động),
-    hiệu ứng hình vẫn giữ nhưng bỏ nhãn chữ."""
+def strip_text(v: Variant, text_sources: set[str],
+               text_free: dict[str, list[tuple[float, float]]] | None = None) -> Variant:
+    """Nguồn đã có chữ in sẵn: bỏ chữ chồng lên đoạn của nguồn đó (kể cả cam kết tự động), trừ khi toàn bộ
+    thời gian hiện chữ nằm trong khoảng `text_free` (giờ nguồn) của nguồn đó. Hiệu ứng hình giữ, bỏ nhãn."""
     if not text_sources:
         return v
-    spans, acc = [], 0.0
-    for p in v.pieces():
-        if p.source in text_sources:
-            spans.append((acc, acc + p.duration))
+    text_free = text_free or {}
+    pieces, acc, starts = v.pieces(), 0.0, []
+    for p in pieces:
+        starts.append(acc)
         acc += p.duration
 
+    def blocked_at(t: float) -> bool:
+        for p, s0 in zip(pieces, starts):
+            if s0 <= t < s0 + p.duration:
+                if p.source not in text_sources:
+                    return False
+                src_t = p.start + (t - s0)
+                return not any(a - 1e-3 <= src_t <= b + 1e-3 for a, b in text_free.get(p.source, []))
+        return False
+
     def covered(start: float, end: float) -> bool:
-        return any(a < end and start < b for a, b in spans)
+        n = max(2, int((end - start) / 0.1) + 1)
+        return any(blocked_at(start + (end - start) * i / (n - 1) - (1e-3 if i == n - 1 else 0)) for i in range(n))
 
     return v.model_copy(update={
         "overlays": [o for o in v.overlays if not covered(o.start, o.end)],
-        "graphics": [g.model_copy(update={"label": ""}) if covered(g.start, g.end) else g for g in v.graphics],
+        "graphics": [g.model_copy(update={"label": ""}) if g.label and covered(g.start, g.end) else g
+                     for g in v.graphics],
     })
 
 

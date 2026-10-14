@@ -28,6 +28,8 @@ class Brief(BaseModel):
     style: str = "default"
     # nguồn đã có chữ in sẵn trên hình (clip KOL dựng sẵn): không chồng thêm chữ lên đoạn lấy từ nguồn này
     text_sources: list[str] = []
+    # trong nguồn có chữ in sẵn: các khoảng [start, end] (giờ nguồn) KHÔNG có chữ → được phép thêm chữ ở đó
+    text_free: dict[str, list[tuple[float, float]]] = {}
 
 
 def read_phrase_list(path: Path) -> list[str]:

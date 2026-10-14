@@ -31,21 +31,25 @@ class TextOverlay(BaseModel):
     start: float  # theo timeline output
     end: float
     position: Literal["top", "center", "bottom"] = "top"
-    style: Literal["hook", "commit", "label", "cta", "plain"] = "hook"
+    style: Literal["hook", "commit", "label", "cta", "plain", "lower", "tag"] = "hook"
     animation: Animation = "pop"
     emphasis: list[str] = []  # từ được tô vệt highlight; rỗng + animation=highlight → tô cả câu
     y: float | None = None  # mép trên (0–1 chiều cao khung); None = theo position. Render tự chọn chỗ không che mặt
+    sub: str = ""  # style lower: dòng phụ chữ thường dưới dòng chính (style guide mục 4)
 
 
 class Graphic(BaseModel):
     """Hiệu ứng minh hoạ vẽ bằng Remotion.
-    light: vầng sáng màu + đồng hồ đếm phút (đèn xanh/đỏ). whiten: icon răng vàng → trắng, ghi "Hình minh họa"."""
-    kind: Literal["light", "whiten"]
+    light: vầng sáng màu + đồng hồ đếm phút (đèn xanh/đỏ). whiten: icon răng vàng → trắng, ghi "Hình minh họa".
+    counter: thẻ toàn màn hình đếm "NGÀY 1 → 7" (label = dòng phụ).
+    teeth: hàm răng vector — đèn xanh quét làm răng vàng → trắng, rồi đèn đỏ làm dịu nướu (ghi "Minh họa")."""
+    kind: Literal["light", "whiten", "teeth", "counter"]
     start: float  # theo timeline output
     end: float
     color: Literal["blue", "red"] = "blue"
     label: str = ""
     y: float | None = None  # mép trên thẻ; None = render tự chọn
+    split: float = 0.56  # teeth: tỉ lệ thời lượng pha đèn xanh (phần còn lại là đèn đỏ)
 
 
 class Effect(BaseModel):

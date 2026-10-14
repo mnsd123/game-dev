@@ -262,6 +262,7 @@ def render_variant(
     motion: bool | None = None,
     cuts_by_source: dict[str, list[float]] | None = None,
     text_sources: set[str] | None = None,
+    text_free: dict[str, list[tuple[float, float]]] | None = None,
 ) -> Path:
     """Kiểm tra claim trên mọi overlay + phụ đề TRƯỚC khi render; vi phạm → ClaimViolation, không tạo file.
     Overlay = chữ trong edl + cam kết tự phát hiện trong lời nói (library/commitments.txt).
@@ -271,9 +272,9 @@ def render_variant(
     if forbidden is None:
         forbidden = read_phrase_list(FORBIDDEN_PATH) + read_phrase_list(PENDING_PATH)
     v = v.model_copy(update={"overlays": plan_overlays(v, words_by_source or {})})
-    v = strip_text(v, text_sources or set())
+    v = strip_text(v, text_sources or set(), text_free)
     words = remap_words(words_by_source or {}, v.pieces()) if v.captions else []
-    texts = ([o.text for o in v.overlays] + [g.label for g in v.graphics if g.label]
+    texts = ([o.text for o in v.overlays] + [o.sub for o in v.overlays if o.sub] + [g.label for g in v.graphics if g.label]
              + ([" ".join(w.text for w in words)] if words else []))
     hits = check_claims(texts, forbidden)
     if hits:

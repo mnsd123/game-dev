@@ -5,6 +5,7 @@ description: Use when có source gốc mới trong thư mục Drive EDIT/"source
 
 # Dựng video Smilee từ source gốc mới (trọn quy trình) — v1
 
+> **v1.2 (2026-10-14)** — dựng theo `library/style-guide.md` (ĐÃ DUYỆT, học từ `EDIT/video mẫu tham khảo/`): thẻ chữ hai dòng tím mận, nhãn TRƯỚC/SAU, thẻ đếm ngày, hàm răng vector minh hoạ đèn; cảnh ≥ 1.2 s.
 > **v1 (2026-10-14)** — sau lô pilot lo-01. Mới so với bản đầu: tránh "vấp hình" ở điểm chuyển cảnh, chữ font Montserrat có nền + tự né mặt, hiệu ứng minh hoạ đèn xanh/đỏ và răng vàng → trắng, phiên âm GPU trên Windows. Lịch sử: `CHANGELOG.md` cùng thư mục.
 
 Điểm vào duy nhất mỗi khi có video quay mới. Kết quả: N file MP4 9:16 trong `EDIT/out/<lô>/` (chữ động bằng Remotion + ffmpeg, không phụ đề toàn bộ lời, chỉ highlight hook, cam kết, lợi ích, CTA), kèm ảnh tổng quan, `qa.json`, `review.csv`.
@@ -56,7 +57,7 @@ vf analyze lo-NN
 ```
 Đọc kết quả in ra: nguồn nào không có tiếng thì đổi vai trò thành `b_roll`.
 Lệnh cũng ghi `work/<nguồn>/scenes.json` (điểm chuyển cảnh). Nguồn thường là clip KOL **đã dựng sẵn** (nhiều cảnh ngắn, sticker) — xem ảnh ghép khung hình trước khi viết edl để biết nội dung thật, có thể khác brief (ví dụ lo-01 là clip quà 20/10): khi đó bám nội dung thật, giữ lợi ích sản phẩm bằng chữ, và báo người dùng.
-**Nguồn đã có chữ in sẵn trên hình** (phụ đề nhấn, tiêu đề, sticker chữ) → thêm tên file vào `text_sources` trong brief. Render sẽ không chồng thêm chữ nào lên đoạn của nguồn đó (kể cả thẻ cam kết tự động và CTA); hiệu ứng hình (vầng sáng đèn) vẫn giữ nhưng bỏ nhãn chữ. Nguồn đã có cảnh before/after thật (bảng so màu) thì dùng cảnh thật, không thêm icon răng minh hoạ. (Yêu cầu người dùng 2026-10-14.)
+**Nguồn đã có chữ in sẵn trên hình** (phụ đề nhấn, tiêu đề, sticker chữ) → thêm tên file vào `text_sources` trong brief. Sau đó xem khung hình từng giây của các đoạn định dùng và ghi khoảng không có chữ in sẵn vào `text_free`: chỉ ở đó mới thêm thẻ chữ theo style guide (người dùng chọn 2026-10-14). Ngoài các khoảng đó render tự bỏ chữ (kể cả cam kết tự động); hiệu ứng hình giữ nhưng bỏ nhãn. Nguồn đã có cảnh before/after thật (bảng so màu) thì dùng cảnh thật, không thêm icon răng minh hoạ. (Yêu cầu người dùng 2026-10-14.)
 
 ## 4. Viết kịch bản dựng
 
@@ -91,4 +92,5 @@ vf render lo-NN
 | Video "vấp", vài khung hình cảnh khác lóe lên | Mép đoạn rơi sát điểm chuyển cảnh; đã tự xử lý khi render, chỉnh edl theo `scenes.json` để gọn hơn |
 | Chữ lỗi dấu tiếng Việt | Thiếu font trong `library/brand/` (mặc định `Montserrat-ExtraBold.ttf`, giấy phép OFL) |
 | Phiên âm rỗng | Lần trước chạy `--no-transcribe`; chạy lại `vf analyze lo-NN` (tự phiên âm lại) |
+| Video mẫu ở `EDIT/video mẫu tham khảo/` (không phải `video tham khảo`) | Thư mục mẫu người dùng đặt; chỉ học kỹ thuật, không lấy hình/nhạc/giọng |
 | Chưa có `library/style-guide.md` đã duyệt | Vẫn dựng được, báo người dùng; muốn học phong cách thì chạy skill `video-style-learning` |

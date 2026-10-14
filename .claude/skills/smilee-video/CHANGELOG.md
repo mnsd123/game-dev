@@ -1,5 +1,15 @@
 # Lịch sử skill smilee-video
 
+## v1.2 — 2026-10-14 (feedback lo-02: v1 3đ, v2 3đ, v3 2đ)
+
+| Feedback | Thay đổi |
+|---|---|
+| Chuyển cảnh nhanh làm xém chữ/hình | Nguyên nhân: chuỗi dựng nhanh 0.6 s có sẵn trong nguồn (nhật ký 7 ngày). Quy tắc cảnh ≥ 1.2 s; bỏ chuỗi đó, thay bằng cảnh before/after dài + thẻ đếm ngày. |
+| Cần motion graphic đèn xanh/đỏ làm răng vàng → trắng | `graphics.kind = "teeth"`: hàm răng vector, thanh LED xanh quét → răng trắng dần, pha đỏ dịu nướu, ghi "Minh họa". |
+| Không mở đầu bằng chi phí; tập trung nỗi đau răng vàng, làm trắng nhanh, biến đổi vàng → trắng, gel tiết kiệm | lo-02 v4–v6 viết lại theo hướng này; "gel tiết kiệm" đặt gần cuối. ("cấp tốc" là cụm cấm → không đưa lên chữ.) |
+| Tham khảo phong cách 2 video mẫu | `library/style-guide.md` (ĐÃ DUYỆT): thẻ `lower` hai dòng tím mận/hồng, nhãn `tag`, thẻ `counter` toàn màn hình, bảng màu. |
+| Nguồn có chữ in sẵn: chỉ thêm chữ ở cảnh không có chữ | Brief `text_free` (khoảng giờ nguồn không có chữ); `strip_text` chỉ giữ chữ nằm trong các khoảng đó. |
+
 ## v1.1 — 2026-10-14 (lô lo-02)
 
 - Yêu cầu người dùng: nguồn đã có chữ in sẵn trên hình thì không thêm chữ minh hoạ. Brief có trường `text_sources`; `vf/motion.py: strip_text` bỏ mọi chữ chồng lên đoạn của các nguồn đó (cả cam kết tự động), hiệu ứng hình giữ nhưng bỏ nhãn.

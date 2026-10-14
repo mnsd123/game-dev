@@ -77,3 +77,14 @@ def test_jump_zoom_keeps_square_pixels(sample_video, tmp_path):
                            gains={SRC: 0.0}, videos=[PieceVideo(), PieceVideo(zoom=JUMP_ZOOM)])
     run(cmd)
     assert out.exists() and probe(out).width == 1080
+
+
+def test_strip_text_keeps_overlays_inside_text_free_window():
+    from vf.edl import Variant
+    from vf.motion import strip_text
+
+    v = Variant(id="x", hook_type="pain", rationale="",
+                hook=Segment(source="t.mp4", start=10.0, end=12.0), segments=[Segment(source="t.mp4", start=20.0, end=24.0)],
+                overlays=[TextOverlay(text="ok", start=2.5, end=3.5), TextOverlay(text="chặn", start=0.2, end=1.0)])
+    out = strip_text(v, {"t.mp4"}, {"t.mp4": [(20.0, 22.0)]})
+    assert [o.text for o in out.overlays] == ["ok"]

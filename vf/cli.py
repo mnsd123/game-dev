@@ -199,10 +199,10 @@ def render(
     if brief_path.exists():
         brief = load_brief(brief_path, FORBIDDEN_PATH, PENDING_PATH)
         forbidden, target = brief.forbidden, brief.target_seconds
-        text_sources = set(brief.text_sources)
+        text_sources, text_free = set(brief.text_sources), brief.text_free
     else:
         forbidden, target = read_phrase_list(FORBIDDEN_PATH) + read_phrase_list(PENDING_PATH), None
-        text_sources = set()
+        text_sources, text_free = set(), {}
     sources, infos = _load_infos(cfg.sources_dir, work_dir)
     if not infos:
         raise typer.BadParameter(f"Chưa có kết quả phân tích trong {work_dir}. Chạy: vf analyze {lo}")
@@ -225,7 +225,7 @@ def render(
             render_variant(sources, infos, v, out, words_by_source=words, brand=BRAND_DIR,
                            style_path=CAPTION_STYLE, work_dir=work_dir / "_render" / lo, forbidden=forbidden,
                            motion=False if static_text else None, cuts_by_source=cuts,
-                           text_sources=text_sources)
+                           text_sources=text_sources, text_free=text_free)
         except ClaimViolation as e:
             out.unlink(missing_ok=True)
             failures.append(str(e))
