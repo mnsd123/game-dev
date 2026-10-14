@@ -56,6 +56,7 @@ vf analyze lo-NN
 ```
 Đọc kết quả in ra: nguồn nào không có tiếng thì đổi vai trò thành `b_roll`.
 Lệnh cũng ghi `work/<nguồn>/scenes.json` (điểm chuyển cảnh). Nguồn thường là clip KOL **đã dựng sẵn** (nhiều cảnh ngắn, sticker) — xem ảnh ghép khung hình trước khi viết edl để biết nội dung thật, có thể khác brief (ví dụ lo-01 là clip quà 20/10): khi đó bám nội dung thật, giữ lợi ích sản phẩm bằng chữ, và báo người dùng.
+**Nguồn đã có chữ in sẵn trên hình** (phụ đề nhấn, tiêu đề, sticker chữ) → thêm tên file vào `text_sources` trong brief. Render sẽ không chồng thêm chữ nào lên đoạn của nguồn đó (kể cả thẻ cam kết tự động và CTA); hiệu ứng hình (vầng sáng đèn) vẫn giữ nhưng bỏ nhãn chữ. Nguồn đã có cảnh before/after thật (bảng so màu) thì dùng cảnh thật, không thêm icon răng minh hoạ. (Yêu cầu người dùng 2026-10-14.)
 
 ## 4. Viết kịch bản dựng
 

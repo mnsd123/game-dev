@@ -38,6 +38,7 @@ Nguồn chỉ có hình (b-roll) vẫn chạy được: transcript rỗng, biế
 - **Không lấy đoạn người nói nói ra cụm cấm** dù không đặt chữ lên (lo-01: hai câu "đảm bảo", câu "top 1 thị trường 3 năm liên tục" chưa có bằng chứng, đoạn mời livestream của KOL).
 - `segments[].source` là tên file nguồn (kèm đuôi). Dùng nguồn theo `source_roles`: `a_roll` mang lời nói, `b_roll` chèn minh hoạ.
 - Tôn trọng `must_keep`, `must_cut`, `forbidden` của brief.
+- **Nguồn trong `brief.text_sources` (đã có chữ in sẵn): không viết `overlays` cho đoạn của nguồn đó**; `graphics` chỉ để hiệu ứng hình, `label` rỗng. Render cũng tự lọc.
 - **Không phụ đề toàn bộ lời nói** (`captions` mặc định `false`). Chỉ đặt chữ động ở đoạn quan trọng: hook (giây 0–3), cam kết, lợi ích chính (15 phút, tại nhà, không cần hẹn lịch, ~800k so với ~8 triệu), CTA. Khoảng 3–6 overlay mỗi biến thể là đủ.
 - **3 cam kết kết quả** ("trắng sau 5–7 ngày", "bật 3–4 tone", "trắng như sứ") được pipeline **tự phát hiện trong lời nói và tự thêm thẻ highlight** (`library/commitments.txt`). Theo quyết định của người dùng ngày 2026-10-13, chúng KHÔNG bị chặn. Nên ưu tiên giữ các đoạn người nói nói ra cam kết này. Không cần tự thêm overlay cho chúng, trừ khi muốn đổi vị trí/chữ (overlay trong edl cùng chữ, trùng thời gian sẽ thay cho bản tự động).
 - **Không chọn đoạn mà người nói nói ra claim còn trong `claims_pending.txt`** (4.8 sao, lượt bán, sinh hoạt bình thường…) nếu định đặt chữ lên đoạn đó, và không đưa cụm trong `forbidden.txt` lên chữ. Render sẽ bị chặn.

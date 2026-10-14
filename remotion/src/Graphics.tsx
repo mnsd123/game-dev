@@ -70,8 +70,8 @@ export const LightFx: React.FC<{ item: GraphicItem }> = ({ item }) => {
           />
         );
       })}
-      {/* thẻ đồng hồ */}
-      <div
+      {/* thẻ đồng hồ — chỉ khi có nhãn (nguồn đã có chữ in sẵn thì bỏ, tránh vòng tròn trơ trọi đè lên mặt) */}
+      {item.label && <div
         style={{
           position: "absolute",
           top: `${(item.y ?? 0.1) * 100}%`,
@@ -108,7 +108,7 @@ export const LightFx: React.FC<{ item: GraphicItem }> = ({ item }) => {
         <div style={{ fontFamily: FONT_STACK, fontWeight: 900, fontSize: 54, color: "#FFFFFF", whiteSpace: "nowrap" }}>
           {item.label}
         </div>
-      </div>
+      </div>}
     </AbsoluteFill>
   );
 };

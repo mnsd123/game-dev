@@ -173,7 +173,7 @@ def build_ffmpeg_cmd(
                          f":stop_mode=clone:stop_duration={pv.tail + 0.1:.3f}")
         if pv.zoom != 1.0:
             zw, zh = 2 * round(W * pv.zoom / 2), 2 * round(H * pv.zoom / 2)
-            chain.append(f"scale={zw}:{zh},crop={W}:{H}")
+            chain.append(f"scale={zw}:{zh},crop={W}:{H},setsar=1")
         chain.append(f"trim=duration={p.duration:.3f},format=yuv420p")
         fc.append(f"[vf{i}]" + ",".join(chain) + f"[v{i}]")
         fade_in = JOIN_FADE_S if i > 0 and pieces[i - 1].source != p.source else DECLICK_S
@@ -261,15 +261,17 @@ def render_variant(
     forbidden: list[str] | None = None,
     motion: bool | None = None,
     cuts_by_source: dict[str, list[float]] | None = None,
+    text_sources: set[str] | None = None,
 ) -> Path:
     """Kiểm tra claim trên mọi overlay + phụ đề TRƯỚC khi render; vi phạm → ClaimViolation, không tạo file.
     Overlay = chữ trong edl + cam kết tự phát hiện trong lời nói (library/commitments.txt).
     motion=None: dùng Remotion nếu đã cài, không thì vẽ chữ tĩnh bằng drawtext."""
-    from vf.motion import plan_overlays, remotion_available, render_overlay
+    from vf.motion import plan_overlays, remotion_available, render_overlay, strip_text
 
     if forbidden is None:
         forbidden = read_phrase_list(FORBIDDEN_PATH) + read_phrase_list(PENDING_PATH)
     v = v.model_copy(update={"overlays": plan_overlays(v, words_by_source or {})})
+    v = strip_text(v, text_sources or set())
     words = remap_words(words_by_source or {}, v.pieces()) if v.captions else []
     texts = ([o.text for o in v.overlays] + [g.label for g in v.graphics if g.label]
              + ([" ".join(w.text for w in words)] if words else []))

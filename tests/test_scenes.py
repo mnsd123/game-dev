@@ -43,3 +43,37 @@ def test_best_y_avoids_face():
     face_top = ([(0.2, 0.0, 0.8, 0.45)], None)
     y = best_y([face_top], 0.8, 0.08, 0.10, [])
     assert y >= 0.45 and _overlap((0.1, y, 0.9, y + 0.08), face_top[0][0]) == 0
+
+
+def test_strip_text_on_sources_with_burned_in_text():
+    from vf.edl import Graphic, Variant
+    from vf.motion import strip_text
+
+    v = Variant(
+        id="x", hook_type="pain", rationale="",
+        hook=Segment(source="text.mp4", start=0, end=2),
+        segments=[Segment(source=SRC, start=0, end=3)],
+        overlays=[TextOverlay(text="hook", start=0, end=1.5), TextOverlay(text="cta", start=3, end=4.5)],
+        graphics=[Graphic(kind="light", label="Đèn xanh", start=1, end=2.5),
+                  Graphic(kind="whiten", label="", start=3, end=4)],
+    )
+    out = strip_text(v, {"text.mp4"})
+    assert [o.text for o in out.overlays] == ["cta"]
+    assert out.graphics[0].label == "" and len(out.graphics) == 2
+    assert strip_text(v, set()) == v
+
+
+def test_jump_zoom_keeps_square_pixels(sample_video, tmp_path):
+    """Phóng to khi cắt nhảy không được đổi SAR, không thì concat lỗi (lo-02 v1)."""
+    from vf.edl import Variant
+    from vf.ffutil import run
+    from vf.probe import probe
+    from vf.render import build_ffmpeg_cmd
+
+    v = Variant(id="z", hook_type="pain", rationale="", hook=Segment(source=SRC, start=0.0, end=0.8),
+                segments=[Segment(source=SRC, start=1.2, end=2.0)])
+    out = tmp_path / "o.mp4"
+    cmd = build_ffmpeg_cmd({SRC: sample_video}, {SRC: probe(sample_video)}, v, None, tmp_path, out,
+                           gains={SRC: 0.0}, videos=[PieceVideo(), PieceVideo(zoom=JUMP_ZOOM)])
+    run(cmd)
+    assert out.exists() and probe(out).width == 1080

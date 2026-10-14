@@ -16,3 +16,4 @@ hook_ideas:
 tone: "gần gũi, nói thật, không phóng đại"
 forbidden: []               # cụm cấm thêm riêng cho lô này (gộp với library/forbidden.txt)
 style: default
+text_sources: []            # nguồn đã có chữ in sẵn trên hình → không thêm chữ lên đoạn của nguồn đó

@@ -26,6 +26,8 @@ class Brief(BaseModel):
     tone: str = ""
     forbidden: list[str] = []
     style: str = "default"
+    # nguồn đã có chữ in sẵn trên hình (clip KOL dựng sẵn): không chồng thêm chữ lên đoạn lấy từ nguồn này
+    text_sources: list[str] = []
 
 
 def read_phrase_list(path: Path) -> list[str]:

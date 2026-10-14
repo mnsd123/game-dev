@@ -93,6 +93,26 @@ def plan_overlays(v: Variant, words_by_source: dict[str, list[Word]]) -> list[Te
     return _no_overlap(sorted(planned, key=lambda o: o.start))
 
 
+def strip_text(v: Variant, text_sources: set[str]) -> Variant:
+    """Nguồn đã có chữ in sẵn: bỏ mọi chữ chồng lên đoạn của nguồn đó (kể cả cam kết tự động),
+    hiệu ứng hình vẫn giữ nhưng bỏ nhãn chữ."""
+    if not text_sources:
+        return v
+    spans, acc = [], 0.0
+    for p in v.pieces():
+        if p.source in text_sources:
+            spans.append((acc, acc + p.duration))
+        acc += p.duration
+
+    def covered(start: float, end: float) -> bool:
+        return any(a < end and start < b for a, b in spans)
+
+    return v.model_copy(update={
+        "overlays": [o for o in v.overlays if not covered(o.start, o.end)],
+        "graphics": [g.model_copy(update={"label": ""}) if covered(g.start, g.end) else g for g in v.graphics],
+    })
+
+
 def _no_overlap(overlays: list[TextOverlay]) -> list[TextOverlay]:
     """Hai chữ cùng vị trí không hiện chồng nhau: chữ trước kết thúc khi chữ sau bắt đầu."""
     out: list[TextOverlay] = []

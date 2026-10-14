@@ -1,5 +1,9 @@
 # Lịch sử skill smilee-video
 
+## v1.1 — 2026-10-14 (lô lo-02)
+
+- Yêu cầu người dùng: nguồn đã có chữ in sẵn trên hình thì không thêm chữ minh hoạ. Brief có trường `text_sources`; `vf/motion.py: strip_text` bỏ mọi chữ chồng lên đoạn của các nguồn đó (cả cam kết tự động), hiệu ứng hình giữ nhưng bỏ nhãn.
+
 ## v1 — 2026-10-14 (sau lô pilot lo-01)
 
 Feedback người dùng sau lo-01 và cách xử lý:
