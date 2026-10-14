@@ -36,6 +36,7 @@ class TextOverlay(BaseModel):
     emphasis: list[str] = []  # từ được tô vệt highlight; rỗng + animation=highlight → tô cả câu
     y: float | None = None  # mép trên (0–1 chiều cao khung); None = theo position. Render tự chọn chỗ không che mặt
     sub: str = ""  # style lower: dòng phụ chữ thường dưới dòng chính (style guide mục 4)
+    max_w: int | None = None  # bề rộng hộp tối đa (px) — render tự điền theo vùng an toàn, không ghi tay
 
 
 class Still(BaseModel):
@@ -52,8 +53,12 @@ class Graphic(BaseModel):
     counter: thẻ toàn màn hình đếm "NGÀY 1 → 7" (label = dòng phụ).
     callout (Vox): khoanh tròn vẽ tay quanh (cx, cy, rx, ry) → mũi tên → nhãn bút dạ vàng `label`.
     collage (Vox): nền giấy toàn màn hình, dán các `stills` (ảnh cắt từ nguồn) nghiêng, nhãn bút dạ vàng.
-    teeth: hàm răng vector — đèn xanh quét làm răng vàng → trắng, rồi đèn đỏ làm dịu nướu (ghi "Minh họa")."""
-    kind: Literal["light", "whiten", "teeth", "counter", "callout", "collage"]
+    teeth: hàm răng vector — đèn xanh quét làm răng vàng → trắng, rồi đèn đỏ làm dịu nướu (ghi "Minh họa").
+    shade: thang màu răng, con trỏ trượt từ `from_shade` → `to_shade` (chỉ dùng số người nói nói ra; label = nguồn,
+      ví dụ "theo trải nghiệm của Giao").
+    wipe: thanh gạt trước/sau toàn màn hình — 2 `stills` (trước, sau) cắt từ nguồn, vạch dọc quét lộ ảnh "sau".
+    Mọi graphic tự nằm trong vùng an toàn TikTok (vf/safezone.py)."""
+    kind: Literal["light", "whiten", "teeth", "counter", "callout", "collage", "shade", "wipe"]
     start: float  # theo timeline output
     end: float
     color: Literal["blue", "red"] = "blue"
@@ -65,6 +70,8 @@ class Graphic(BaseModel):
     rx: float = 0.25
     ry: float = 0.08
     stills: list[Still] = []
+    from_shade: int = 10  # shade: mức trên thang màu lúc đầu (số lớn = vàng hơn)
+    to_shade: int = 5  # shade: mức lúc sau
 
 
 class Effect(BaseModel):
@@ -78,9 +85,14 @@ class Effect(BaseModel):
     keyframes: list[tuple[float, float, float]] = []  # zoom_to: (giây từ `at`, cx, cy) — render điền khi có track
 
 
+Preset = Literal["ugc", "result_rewind", "vox", "routine", "reply", "beat"]  # style guide mục 11
+
+
 class Variant(BaseModel):
     id: str
     hook_type: str
+    preset: Preset | None = None  # một phong cách dựng cho cả biến thể, không trộn
+    cutdown_of: str | None = None  # bản cắt ngắn của biến thể này (thời lượng theo brief.cutdown_seconds)
     hook: Segment
     segments: list[Segment]
     overlays: list[TextOverlay] = []
@@ -88,6 +100,7 @@ class Variant(BaseModel):
     effects: list[Effect] = []
     captions: bool = False  # mặc định KHÔNG phụ đề toàn bộ lời; chỉ chữ động ở đoạn quan trọng
     music: str | None = None
+    sfx_auto: bool = True  # tự gắn SFX từ library/brand/sfx/ theo hiệu ứng (vf/creative.py)
     rationale: str
 
     def pieces(self) -> list[Segment]:

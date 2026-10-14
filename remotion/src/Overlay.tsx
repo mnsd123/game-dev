@@ -13,8 +13,10 @@ import {
   useCurrentFrame,
   useVideoConfig,
 } from "remotion";
-import { CalloutFx, CollageFx, CounterFx, LightFx, TeethFx, VoxLabel, WhitenFx } from "./Graphics";
-import { Colors, DEFAULT_COLORS, FONT_STACK, OverlayItem, OverlayProps, PALETTE } from "./types";
+import { CalloutFx, CollageFx, CounterFx, LightFx, ShadeFx, TeethFx, VoxLabel, WhitenFx, WipeFx } from "./Graphics";
+import {
+  Colors, DEFAULT_COLORS, DEFAULT_SAFE, FONT_STACK, OverlayItem, OverlayProps, PALETTE, Safe, safeCenteredW,
+} from "./types";
 
 // khớp FONT_PX / PAD_PX trong vf/placement.py (Python ước lượng chiều cao để chọn chỗ đặt)
 const FONT_PX: Record<OverlayItem["style"], number> = { hook: 80, commit: 72, label: 54, cta: 58, plain: 60, lower: 72, tag: 50, vox: 66 };
@@ -22,7 +24,7 @@ const PAD_PX: Record<OverlayItem["style"], number> = { hook: 18, commit: 22, lab
 const SUB_PX = 38;
 
 /** Thẻ hai dòng (style guide mục 4): nền tím mận, dòng chính hồng viết hoa, dòng phụ trắng chữ thường. */
-const LowerCard: React.FC<{ item: OverlayItem }> = ({ item }) => {
+const LowerCard: React.FC<{ item: OverlayItem; safe: Safe }> = ({ item, safe }) => {
   const frame = useCurrentFrame();
   const { fps, durationInFrames } = useVideoConfig();
   const enter = spring({ frame, fps, config: { damping: 16, stiffness: 190 } });
@@ -37,7 +39,8 @@ const LowerCard: React.FC<{ item: OverlayItem }> = ({ item }) => {
         style={{
           position: "absolute",
           top: item.y != null ? `${item.y * 100}%` : TOP[item.position],
-          maxWidth: 940,
+          maxWidth: item.max_w ?? safeCenteredW(safe),
+          boxSizing: "border-box",
           textAlign: "center",
           fontFamily: FONT_STACK,
           padding: `${PAD_PX[item.style]}px ${isTag ? 34 : 40}px`,
@@ -63,7 +66,8 @@ const LowerCard: React.FC<{ item: OverlayItem }> = ({ item }) => {
 };
 const EXIT_FRAMES = 6;
 
-const TOP: Record<OverlayItem["position"], string> = { top: "12%", center: "42%", bottom: "70%" };
+// khi Python chưa đặt y: vị trí mặc định vẫn trong vùng an toàn (trên 12.5 %, dưới 65.6 %)
+const TOP: Record<OverlayItem["position"], string> = { top: "14%", center: "42%", bottom: "54%" };
 
 type Piece = { t: string; em: boolean };
 
@@ -99,7 +103,7 @@ const Marker: React.FC<{ progress: number; color: string; children: React.ReactN
   </span>
 );
 
-const Item: React.FC<{ item: OverlayItem; colors: Colors }> = ({ item, colors }) => {
+const Item: React.FC<{ item: OverlayItem; colors: Colors; safe: Safe }> = ({ item, colors, safe }) => {
   const frame = useCurrentFrame();
   const { fps, durationInFrames } = useVideoConfig();
   const enter = spring({ frame, fps, config: { damping: 14, stiffness: 180, mass: 0.6 } });
@@ -174,7 +178,8 @@ const Item: React.FC<{ item: OverlayItem; colors: Colors }> = ({ item, colors })
         style={{
           position: "absolute",
           top: item.y != null ? `${item.y * 100}%` : TOP[item.position],
-          maxWidth: 1000,
+          maxWidth: item.max_w ?? safeCenteredW(safe),
+          boxSizing: "border-box",
           textAlign: "center",
           textWrap: "balance",
           fontFamily: FONT_STACK,
@@ -199,7 +204,8 @@ const Item: React.FC<{ item: OverlayItem; colors: Colors }> = ({ item, colors })
   );
 };
 
-export const Overlay: React.FC<OverlayProps> = ({ overlays, graphics, fontFile, colors }) => {
+export const Overlay: React.FC<OverlayProps> = ({ overlays, graphics, fontFile, colors, safe }) => {
+  const sz: Safe = { ...DEFAULT_SAFE, ...(safe ?? {}) };
   const { fps } = useVideoConfig();
   const [handle] = useState(() => (fontFile ? delayRender("Tải font brand") : null));
   useEffect(() => {
@@ -218,8 +224,9 @@ export const Overlay: React.FC<OverlayProps> = ({ overlays, graphics, fontFile, 
         return (
           <Sequence key={`g${i}`} from={from} durationInFrames={dur} name={`${g.kind} ${g.label}`}>
             {g.kind === "light" ? <LightFx item={g} /> : g.kind === "teeth" ? <TeethFx item={g} />
-              : g.kind === "counter" ? <CounterFx item={g} /> : g.kind === "callout" ? <CalloutFx item={g} />
-              : g.kind === "collage" ? <CollageFx item={g} /> : <WhitenFx item={g} />}
+              : g.kind === "counter" ? <CounterFx item={g} safe={sz} /> : g.kind === "callout" ? <CalloutFx item={g} safe={sz} />
+              : g.kind === "collage" ? <CollageFx item={g} safe={sz} /> : g.kind === "shade" ? <ShadeFx item={g} />
+              : g.kind === "wipe" ? <WipeFx item={g} safe={sz} /> : <WhitenFx item={g} />}
           </Sequence>
         );
       })}
@@ -228,8 +235,8 @@ export const Overlay: React.FC<OverlayProps> = ({ overlays, graphics, fontFile, 
         const dur = Math.max(1, Math.round(o.end * fps) - from);
         return (
           <Sequence key={i} from={from} durationInFrames={dur} name={o.text}>
-            {o.style === "lower" || o.style === "tag" ? <LowerCard item={o} /> : o.style === "vox" ? <VoxLabel item={o} />
-              : <Item item={o} colors={c} />}
+            {o.style === "lower" || o.style === "tag" ? <LowerCard item={o} safe={sz} /> : o.style === "vox" ? <VoxLabel item={o} safe={sz} />
+              : <Item item={o} colors={c} safe={sz} />}
           </Sequence>
         );
       })}

@@ -11,6 +11,7 @@ from pathlib import Path
 from vf.edl import TextOverlay, Variant, output_duration
 from vf.paths import BRAND_DIR, LIBRARY, ROOT
 from vf.qa import _norm, _pattern, _strip
+from vf.safezone import SAFE
 from vf.transcribe import Word
 
 REMOTION_DIR = ROOT / "remotion"
@@ -192,6 +193,7 @@ def render_overlay(
         "durationInFrames": max(1, round(output_duration(v) * 30)),
         "overlays": [o.model_dump() for o in ovs],
         "graphics": _graphics_props(v),
+        "safe": SAFE.props(),  # vùng an toàn TikTok (px) — Remotion bố cục thẻ toàn màn hình, nhãn trong vùng này
         **_brand_props(brand),
     }
     props_path = Path(props_path) if props_path else out.with_suffix(".json")

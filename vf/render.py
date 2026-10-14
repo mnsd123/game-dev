@@ -9,12 +9,15 @@ import textwrap
 from pathlib import Path
 
 from vf.captions import remap_words, words_to_ass
+from vf.creative import auto_sfx, lint_variant
 from vf.edl import Effect, TextOverlay, Variant, output_duration
 from vf.ffutil import run
 from vf.paths import BRAND_DIR, CAPTION_STYLE, LIBRARY
 from vf.probe import MediaInfo
+from vf.safezone import SAFE
 from vf.brief import FORBIDDEN_PATH, PENDING_PATH, read_phrase_list
-from vf.qa import ClaimViolation, check_claims, measure_lufs
+from vf.placement import FULL_FRAME
+from vf.qa import ClaimViolation, check_claims, check_safe_zone, measure_lufs
 from vf.scenes import PieceVideo, plan_piece_video
 from vf.transcribe import Word
 
@@ -22,6 +25,7 @@ W, H, FPS = 1080, 1920, 30
 SOURCE_TARGET_LUFS = -16.0
 BROLL_TARGET_LUFS = -26.0  # nguồn không có lời nói: chỉ giảm, không bao giờ tăng (tránh đẩy tiếng ồn nền)
 MUSIC_BELOW_VOICE_DB = 18.0
+SFX_GAIN_DB = -8.0  # SFX nằm dưới giọng nói, chỉ "điểm" nhịp
 JOIN_FADE_S = 0.04  # nửa của 0.08 s mỗi bên chỗ nối hai nguồn khác nhau
 DECLICK_S = 0.01
 FONT_EXTS = (".ttf", ".otf")
@@ -264,7 +268,8 @@ def build_ffmpeg_cmd(
     for k, e in enumerate(x for x in v.effects if x.kind == "sfx" and x.asset):
         cmd += ["-i", str(resolve_asset(e.asset, brand))]
         ms = int(e.at * 1000)
-        fc.append(f"[{extra}:a]aresample=48000,aformat=channel_layouts=stereo,adelay={ms}|{ms}[sfx{k}]")
+        fc.append(f"[{extra}:a]aresample=48000,aformat=channel_layouts=stereo,volume={SFX_GAIN_DB}dB,"
+                  f"adelay={ms}|{ms}[sfx{k}]")
         mix.append(f"[sfx{k}]")
         extra += 1
     if len(mix) > 1:
@@ -282,16 +287,17 @@ def build_ffmpeg_cmd(
     return cmd
 
 
-def _placed(v: Variant, videos: list[PieceVideo], sources: dict[str, Path]) -> Variant:
-    """Đặt chữ/hiệu ứng vào chỗ không che mặt; thiếu OpenCV thì giữ vị trí khai trong edl."""
-    try:
-        import cv2  # noqa: F401
-    except ImportError:
-        return v
+def _placed(v: Variant, videos: list[PieceVideo], sources: dict[str, Path]) -> tuple[Variant, list[str]]:
+    """Đặt chữ/hiệu ứng trong vùng an toàn TikTok, không che mặt; thiếu OpenCV thì chỉ giữ vùng an toàn."""
     from vf.placement import place
 
-    overlays, graphics = place(v.pieces(), videos, sources, v.overlays, v.graphics)
-    return v.model_copy(update={"overlays": overlays, "graphics": graphics})
+    try:
+        import cv2  # noqa: F401
+        faces = True
+    except ImportError:
+        faces = False
+    overlays, graphics, notes = place(v.pieces(), videos, sources, v.overlays, v.graphics, faces=faces)
+    return v.model_copy(update={"overlays": overlays, "graphics": graphics}), notes
 
 
 def _extract_stills(v: Variant, sources: dict[str, Path]) -> None:
@@ -324,8 +330,12 @@ def render_variant(
     cuts_by_source: dict[str, list[float]] | None = None,
     text_sources: set[str] | None = None,
     text_free: dict[str, list[tuple[float, float]]] | None = None,
+    notes: list[str] | None = None,
+    creative: list[str] | None = None,
 ) -> Path:
-    """Kiểm tra claim trên mọi overlay + phụ đề TRƯỚC khi render; vi phạm → ClaimViolation, không tạo file.
+    """`creative` (nếu truyền): nhận ghi chú sáng tạo (vf/creative.py), không chặn render.
+    `notes` (nếu truyền): nhận ghi chú vùng an toàn (chữ/hình bị kéo vào, lấn vùng giao diện TikTok).
+    Kiểm tra claim trên mọi overlay + phụ đề TRƯỚC khi render; vi phạm → ClaimViolation, không tạo file.
     Overlay = chữ trong edl + cam kết tự phát hiện trong lời nói (library/commitments.txt).
     motion=None: dùng Remotion nếu đã cài, không thì vẽ chữ tĩnh bằng drawtext."""
     from vf.motion import plan_overlays, remotion_available, render_overlay, strip_text
@@ -355,12 +365,20 @@ def render_variant(
     speech = spoken or None  # chưa có transcript nào → không đoán, coi mọi nguồn là có lời nói
     videos = plan_piece_video(v.pieces(), cuts_by_source or {})
     v = _tracked(v, sources)
+    v = v.model_copy(update={"effects": v.effects + auto_sfx(v, Path(brand) / "sfx")})
+    if creative is not None:
+        creative += lint_variant(v)
     overlay_path = None
+    notes = notes if notes is not None else []
+    if v.overlays or v.graphics:
+        v, placed_notes = _placed(v, videos, sources)
+        notes += placed_notes
     if (v.overlays or v.graphics) and (remotion_available() if motion is None else motion):
-        v = _placed(v, videos, sources)
         _extract_stills(v, sources)
         overlay_path = render_overlay(v, DEFAULT_STYLE_GUIDE, work / f"{v.id}_overlay.mov", brand=brand,
                                       props_path=work / f"{v.id}_overlay.json")
+        full = [(g.start, g.end) for g in v.graphics if g.kind in FULL_FRAME]
+        notes += check_safe_zone(overlay_path, skip=full)
     cmd = build_ffmpeg_cmd(sources, infos, v, ass_path, brand, tmp_out, text_dir=work / f"{v.id}_text",
                            speech=speech, overlay=overlay_path, videos=videos)
     try:

@@ -2,6 +2,7 @@
 platform: tiktok            # tiktok | reels | shorts
 aspect: "9:16"              # 9:16 | 1:1 | 16:9
 target_seconds: 30          # tổng thời lượng mong muốn (±10%)
+cutdown_seconds: null       # bản cắt ngắn (giây, gợi ý 22) cho biến thể có "cutdown_of" trong edl; null = không làm
 variants: 3                 # số biến thể (1–20), mỗi bản một kiểu hook khác nhau
 goal: awareness             # awareness (nhận diện) | education (giáo dục) | conversion (chuyển đổi)
 message: "Trắng răng tại nhà, 15 phút mỗi lần, không cần hẹn lịch."   # thông điệp một câu

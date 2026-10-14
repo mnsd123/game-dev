@@ -15,6 +15,7 @@ import typer
 from vf.analyze import analyze_all, list_videos, load_cuts, load_words, source_work_dir
 from vf.brief import load_brief, read_phrase_list
 from vf.config import load_config
+from vf.creative import SFX_EXTS, lint_batch
 from vf.learn import stats_markdown, summarize_reviews
 from vf.edl import Variant, load_edl, output_duration
 from vf.scenes import micro_shots
@@ -198,10 +199,10 @@ def render(
     brief_path = job / "brief.yaml"
     if brief_path.exists():
         brief = load_brief(brief_path, FORBIDDEN_PATH, PENDING_PATH)
-        forbidden, target = brief.forbidden, brief.target_seconds
+        forbidden, target, cutdown = brief.forbidden, brief.target_seconds, brief.cutdown_seconds
         text_sources, text_free = set(brief.text_sources), brief.text_free
     else:
-        forbidden, target = read_phrase_list(FORBIDDEN_PATH) + read_phrase_list(PENDING_PATH), None
+        forbidden, target, cutdown = read_phrase_list(FORBIDDEN_PATH) + read_phrase_list(PENDING_PATH), None, None
         text_sources, text_free = set(), {}
     sources, infos = _load_infos(cfg.sources_dir, work_dir)
     if not infos:
@@ -216,16 +217,19 @@ def render(
     qa_by_id = {q["variant"]: q for q in json.loads(qa_path.read_text(encoding="utf-8"))} if qa_path.exists() else {}
     failures: list[str] = []
     rows = []
+    batch_notes = lint_batch([v for v in edl.variants if not only or v.id in only])
     for v in edl.variants:
         rows.append({"variant": v.id, "hook_type": v.hook_type, "hook_text": _hook_text(v, words)})
         if only and v.id not in only:
             continue
         out = out_dir / f"{v.id}.mp4"
+        safe_notes: list[str] = []
+        creative: list[str] = list(batch_notes.get(v.id, []))
         try:
             render_variant(sources, infos, v, out, words_by_source=words, brand=BRAND_DIR,
                            style_path=CAPTION_STYLE, work_dir=work_dir / "_render" / lo, forbidden=forbidden,
                            motion=False if static_text else None, cuts_by_source=cuts,
-                           text_sources=text_sources, text_free=text_free)
+                           text_sources=text_sources, text_free=text_free, notes=safe_notes, creative=creative)
         except ClaimViolation as e:
             out.unlink(missing_ok=True)
             failures.append(str(e))
@@ -238,16 +242,20 @@ def render(
             qa_by_id.pop(v.id, None)
             continue
         report = check_output(out, output_duration(v))
+        report.notes += safe_notes  # vùng an toàn TikTok: phải rỗng mới đăng
         for note in micro_shots(v.pieces(), cuts):  # đã xử lý khi render; in ra để biết mà chỉnh edl cho gọn
             typer.echo(f"   · {note}")
-        if target and abs(output_duration(v) - target) > 0.1 * target:
-            report.notes.append(f"Tổng {output_duration(v):.1f} s lệch quá 10% so với brief ({target} s)")
+        goal_s = cutdown if v.cutdown_of and cutdown else target
+        if goal_s and abs(output_duration(v) - goal_s) > 0.1 * goal_s:
+            report.notes.append(f"Tổng {output_duration(v):.1f} s lệch quá 10% so với brief ({goal_s} s)")
         contact_sheet(out, out_dir / f"{v.id}_sheet.png")
-        qa_by_id[v.id] = {"variant": v.id, **report.to_dict()}
-        status = "OK" if report.duration_ok and report.size_ok and report.loudness_ok else "CẦN XEM"
+        qa_by_id[v.id] = {"variant": v.id, **report.to_dict(), "creative": creative}
+        status = "OK" if report.duration_ok and report.size_ok and report.loudness_ok and not safe_notes else "CẦN XEM"
         typer.echo(f"{status} {v.id} ({v.hook_type}, {output_duration(v):.1f} s): {v.rationale}")
         for n in report.notes:
             typer.echo(f"   - {n}")
+        for n in creative:  # gợi ý sáng tạo, không chặn
+            typer.echo(f"   ~ {n}")
 
     qa_path.write_text(json.dumps(list(qa_by_id.values()), ensure_ascii=False, indent=1), encoding="utf-8")
     _write_review(out_dir / "review.csv", rows)
@@ -326,6 +334,13 @@ def doctor(config: Path = ConfigOpt) -> None:
         ok("Remotion đã cài — chữ động")
     else:
         warn("chưa cài Remotion — chữ sẽ tĩnh; cài: cd remotion && npm install (cần Node 20+)")
+
+    sfx = [p for p in (BRAND_DIR / "sfx").glob("*") if p.suffix.lower() in SFX_EXTS] if (BRAND_DIR / "sfx").is_dir() else []
+    if sfx:
+        ok(f"SFX: {len(sfx)} file trong library/brand/sfx/")
+    else:
+        warn("chưa có SFX — video không có âm thanh dựng; bỏ whoosh/pop/marker/paper/tick/swipe/shimmer"
+             " (.wav/.mp3, có giấy phép) vào library/brand/sfx/")
 
     typer.echo("Sẵn sàng. Gõ /smilee-video trong Claude Code." if not errors else f"Còn {errors} lỗi cần sửa.")
     if errors:

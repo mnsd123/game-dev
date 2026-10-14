@@ -11,10 +11,11 @@ export type OverlayItem = {
   emphasis: string[];
   y?: number | null; // mép trên, 0–1 chiều cao khung (Python chọn chỗ không che mặt)
   sub?: string; // style lower: dòng phụ
+  max_w?: number | null; // bề rộng hộp tối đa (px) theo vùng an toàn — Python điền
 };
 
 export type GraphicItem = {
-  kind: "light" | "whiten" | "teeth" | "counter" | "callout" | "collage";
+  kind: "light" | "whiten" | "teeth" | "counter" | "callout" | "collage" | "shade" | "wipe";
   start: number;
   end: number;
   color: "blue" | "red";
@@ -25,8 +26,16 @@ export type GraphicItem = {
   cy?: number;
   rx?: number;
   ry?: number;
-  stills?: { file: string; label: string }[]; // collage: ảnh trong public/
+  stills?: { file: string; label: string }[]; // collage/wipe: ảnh trong public/
+  from_shade?: number; // shade: mức thang màu lúc đầu → lúc sau
+  to_shade?: number;
 };
+
+// vùng an toàn TikTok (px trên khung 1080x1920) — nguồn số liệu: vf/safezone.py
+export type Safe = { top: number; bottom: number; side: number; rail_w: number; rail_top: number };
+export const DEFAULT_SAFE: Safe = { top: 240, bottom: 660, side: 120, rail_w: 180, rail_top: 840 };
+/** Bề rộng tối đa (px) của hộp căn giữa khung, nằm trọn trong vùng an toàn kể cả hàng cột nút. */
+export const safeCenteredW = (s: Safe) => 2 * Math.min(540 - s.side, 1080 - s.rail_w - 540) - 24;
 
 // bảng màu style guide (library/style-guide.md mục 8, đã duyệt 2026-10-14)
 export const PALETTE = {
@@ -56,6 +65,7 @@ export type OverlayProps = {
   graphics?: GraphicItem[];
   fontFile?: string; // file trong public/ (Python chép từ library/brand/)
   colors?: Partial<Colors>;
+  safe?: Safe;
 };
 
 export const DEFAULT_COLORS: Colors = {

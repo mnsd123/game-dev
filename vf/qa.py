@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import math
 import re
+import subprocess
 import unicodedata
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -136,7 +137,7 @@ def check_output(path: Path, expected: float, size: tuple[int, int] = (1080, 192
 
 
 def contact_sheet(path: Path, out_png: Path, cols: int = 6, rows: int = 3, thumb_w: int = 180) -> Path:
-    """Ảnh tổng quan: cols x rows khung hình rải đều theo thời lượng."""
+    """Ảnh tổng quan: cols x rows khung hình rải đều theo thời lượng; viền đỏ = vùng an toàn TikTok."""
     from vf.probe import probe
 
     dur = max(probe(path).duration, 0.1)
@@ -144,5 +145,90 @@ def contact_sheet(path: Path, out_png: Path, cols: int = 6, rows: int = 3, thumb
     out_png = Path(out_png)
     out_png.parent.mkdir(parents=True, exist_ok=True)
     run(["ffmpeg", "-y", "-v", "error", "-i", str(path), "-vf",
-         f"fps={n / dur:.5f},scale={thumb_w}:-2,tile={cols}x{rows}", "-frames:v", "1", str(out_png)])
+         f"fps={n / dur:.5f},{contact_sheet_filter()},scale={thumb_w}:-2,tile={cols}x{rows}", "-frames:v", "1", str(out_png)])
     return out_png
+
+
+# ---------------------------------------------------------------- vùng an toàn
+
+SAFE_CHECK_FPS = 4
+SAFE_GRID = (108, 192)  # khung 1080x1920 thu nhỏ 10 lần
+SAFE_ALPHA = 217  # ~85 %: chữ, thẻ, hình đặc; vầng sáng/bóng mờ (< 85 %) được phép tràn mép
+SAFE_MIN_CELLS = 3  # bỏ qua nhiễu vài ô
+
+
+def _unsafe_regions(safe) -> dict[str, list[tuple[int, int, int, int]]]:
+    """Các vùng cấm trên lưới thu nhỏ: (x0, y0, x1, y1) theo ô."""
+    gw, gh = SAFE_GRID
+    sx, sy = gw / 1080, gh / 1920
+    top, bot = round(safe.top * sy), round((1920 - safe.bottom) * sy)
+    side = round(safe.side * sx)
+    rail_x, rail_y = round((1080 - safe.rail_w) * sx), round(safe.rail_top * sy)
+    return {
+        "trên": [(0, 0, gw, top)],
+        "dưới": [(0, bot, gw, gh)],
+        "trái": [(0, top, side, bot)],
+        "phải": [(gw - side, top, gw, rail_y)],
+        "phải (cột nút)": [(rail_x, rail_y, gw, bot)],
+    }
+
+
+def check_safe_zone(overlay: Path, skip: list[tuple[float, float]] | None = None, safe=None) -> list[str]:
+    """Đọc kênh alpha của lớp chữ/hình (video nền trong suốt) và báo các khoảng thời gian có chữ/hình đặc
+    nằm ngoài vùng an toàn. `skip`: khoảng thời gian của thẻ toàn màn hình (nền phủ kín, tự bố cục)."""
+    import numpy as np
+
+    from vf.safezone import SAFE
+
+    safe = safe or SAFE
+    gw, gh = SAFE_GRID
+    proc = subprocess.run(
+        ["ffmpeg", "-v", "error", "-i", str(overlay), "-vf",
+         f"fps={SAFE_CHECK_FPS},alphaextract,scale={gw}:{gh}:flags=area", "-f", "rawvideo", "-pix_fmt", "gray", "-"],
+        capture_output=True,
+    )
+    if proc.returncode != 0:
+        return [f"vùng an toàn: không đọc được kênh alpha của {Path(overlay).name}"]
+    frames = np.frombuffer(proc.stdout, dtype=np.uint8)
+    frames = frames[: len(frames) // (gw * gh) * gw * gh].reshape(-1, gh, gw)
+    regions = _unsafe_regions(safe)
+    hits: list[tuple[float, str]] = []
+    for k, fr in enumerate(frames):
+        t = k / SAFE_CHECK_FPS
+        if any(a <= t <= b for a, b in (skip or [])):
+            continue
+        solid = fr >= SAFE_ALPHA
+        for name, boxes in regions.items():
+            if sum(int(solid[y0:y1, x0:x1].sum()) for x0, y0, x1, y1 in boxes) >= SAFE_MIN_CELLS:
+                hits.append((t, name))
+    # gộp thành khoảng liên tục theo vùng
+    notes = []
+    for name in regions:
+        ts = [t for t, n in hits if n == name]
+        if not ts:
+            continue
+        spans, a, b = [], ts[0], ts[0]
+        for t in ts[1:]:
+            if t - b > 1.5 / SAFE_CHECK_FPS:
+                spans.append((a, b))
+                a = t
+            b = t
+        spans.append((a, b))
+        txt = ", ".join(f"{a:.1f}–{b + 1 / SAFE_CHECK_FPS:.1f} s" for a, b in spans)
+        notes.append(f"vùng an toàn: chữ/hình lấn vùng {name} lúc {txt}")
+    return notes
+
+
+def contact_sheet_filter(safe=None) -> str:
+    """Kẻ viền đỏ quanh vùng an toàn trên ảnh tổng quan: chữ/hình nằm ngoài viền là bị giao diện TikTok che."""
+    from vf.safezone import SAFE
+
+    s = safe or SAFE
+    c = "red@0.9:t=6"
+    upper_h = (s.rail_top - s.top) / 1920
+    lower_h = (1920 - s.bottom - s.rail_top) / 1920
+    return ",".join([
+        f"drawbox=x=iw*{s.side / 1080:.4f}:y=ih*{s.top / 1920:.4f}:w=iw*{1 - 2 * s.side / 1080:.4f}:h=ih*{upper_h:.4f}:color={c}",
+        f"drawbox=x=iw*{s.side / 1080:.4f}:y=ih*{s.rail_top / 1920:.4f}:w=iw*{1 - (s.side + s.rail_w) / 1080:.4f}"
+        f":h=ih*{lower_h:.4f}:color={c}",
+    ])

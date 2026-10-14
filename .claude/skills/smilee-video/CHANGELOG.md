@@ -1,5 +1,17 @@
 # Lịch sử skill smilee-video
 
+## v1.4 — 2026-10-14 (nghiên cứu xu hướng quảng cáo TikTok 2026 + yêu cầu vùng an toàn)
+
+| Vấn đề / gợi ý | Thay đổi |
+|---|---|
+| Chữ/hình **thêm vào** có thể bị giao diện TikTok che (vùng an toàn chỉ áp cho phần Claude thêm; nội dung source gốc giữ nguyên) (placement cũ chỉ chừa 6 % trên, 20 % đáy, không tính cột nút phải) | `vf/safezone.py` (trên 240 px, dưới 660 px, hai bên 120 px, cột nút 180 px từ y 840): placement chỉ đặt trong vùng an toàn, hộp chữ thu hẹp ở hàng cột nút (`max_w`), `y` ghi tay và `callout` bị kéo vào; Remotion nhận `safe` (thẻ đếm ngày, ảnh ghép, nhãn khoanh, chữ Vox xuống dòng); chữ tĩnh và phụ đề ASS cũng theo vùng an toàn. QA đọc kênh alpha lớp chữ → `vùng an toàn: …` + CẦN XEM; `*_sheet.png` kẻ viền đỏ vùng an toàn. |
+| lo-02 không có nhạc lẫn SFX dù pipeline hỗ trợ | SFX tự động theo hiệu ứng từ `library/brand/sfx/` (`vf/creative.py`), −8 dB; `vf doctor` cảnh báo khi thiếu SFX; style guide mục 7. |
+| Trộn nhiều ngôn ngữ đồ hoạ trong một bản; biến thể khó thành phương án test khác nhau | `preset` mỗi biến thể (ugc, result_rewind, vox, routine, reply, beat — style guide mục 11); QA nhắc hook trùng trong cùng lần render. |
+| CTA chỉ ở ~94 % thời lượng; người xem rời mạnh sau ~25 s | CTA mềm ở 60–85 % + CTA cuối; bản cắt ngắn `cutdown_seconds` / `cutdown_of`. |
+| Typography: chỉ một font, không quy tắc đọc | Style guide mục 12: tối đa 2–3 kiểu chữ, phân màu theo vai trò, chỉ từ khoá chuyển động, hook có chữ trước 0.5 s, ≤ 3.5 từ/giây — QA nhắc (`creative`). |
+| Motion graphic mới theo xu hướng beauty | `shade` (thang màu răng, chỉ dùng số người nói nói ra) và `wipe` (thanh gạt trước/sau từ cảnh thật). Các hiệu ứng chưa làm ghi ở style guide mục 14. |
+| Vòng học chỉ có điểm cảm tính | Nhắc điền `views`, `retention_3s`; video-learnings có mốc retention 3 s và học theo preset. |
+
 ## v1.3.1 — 2026-10-14 (lo-02 v7–v9: 3đ)
 
 - Vox giữ nguyên. Người dùng nhắc: **không bỏ** motion graphic răng vàng → trắng khi đèn xanh/đỏ, vầng sáng, thẻ đếm ngày — dùng tiếp khi hợp bối cảnh (style guide mục 10, video-batch-edit).

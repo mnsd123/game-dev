@@ -5,6 +5,7 @@ description: Use when có source gốc mới trong thư mục Drive EDIT/"source
 
 # Dựng video Smilee từ source gốc mới (trọn quy trình) — v1
 
+> **v1.4 (2026-10-14)** — vùng an toàn TikTok bắt buộc (tự đặt + QA alpha), SFX tự động, preset dựng, bản cắt ngắn, CTA giữa video, kiểm tra sáng tạo; graphic mới `shade`, `wipe`. Theo nghiên cứu xu hướng quảng cáo TikTok 2026.
 > **v1.3 (2026-10-14)** — phong cách Vox: zoom ống kính bám răng + khoanh tay + bút dạ, ảnh ghép giấy trước/sau; chỉ thêm đồ hoạ ở đoạn nguồn trơn.
 > **v1.2 (2026-10-14)** — dựng theo `library/style-guide.md` (ĐÃ DUYỆT, học từ `EDIT/video mẫu tham khảo/`): thẻ chữ hai dòng tím mận, nhãn TRƯỚC/SAU, thẻ đếm ngày, hàm răng vector minh hoạ đèn; cảnh ≥ 1.2 s.
 > **v1 (2026-10-14)** — sau lô pilot lo-01. Mới so với bản đầu: tránh "vấp hình" ở điểm chuyển cảnh, chữ font Montserrat có nền + tự né mặt, hiệu ứng minh hoạ đèn xanh/đỏ và răng vàng → trắng, phiên âm GPU trên Windows. Lịch sử: `CHANGELOG.md` cùng thư mục.
@@ -42,10 +43,11 @@ Lệnh tạo `jobs/lo-NN/brief.yaml`, `source_roles` điền sẵn các nguồn 
 
 Yêu cầu người dùng gõ kèm lệnh (ví dụ `/smilee-video cắt xuống dưới 1 phút 30 giây`) là ràng buộc cứng, ghi vào brief trước khi hỏi:
 - Giới hạn thời lượng "dưới X giây" → `target_seconds` = X ÷ 1.1, làm tròn xuống (dưới 90 s → 80), vì pipeline cho phép ±10%. Ghi thêm X vào `must_keep`/ghi chú và kiểm tra mọi biến thể < X ở bước 5.
-- Yêu cầu khác (số bản, kiểu hook, nguồn nào dùng) → điền thẳng vào trường tương ứng, không hỏi lại.
+- Yêu cầu khác (số bản, kiểu hook, preset, nguồn nào dùng) → điền thẳng vào trường tương ứng, không hỏi lại.
 
 Hỏi người dùng MỘT lần, gộp vào một tin nhắn, mỗi mục kèm đề xuất mặc định để họ chỉ cần trả lời "ok":
-- mục tiêu (awareness / education / conversion), thời lượng, số biến thể (mặc định 3)
+- mục tiêu (awareness / education / conversion), thời lượng, số biến thể (mặc định 3), bản cắt ngắn `cutdown_seconds` (mặc định 22 s khi thời lượng > 30 s; "không" để bỏ)
+- preset cho từng biến thể (style guide mục 11; mặc định chọn 3 preset khác nhau hợp nội dung nguồn)
 - thông điệp một câu, CTA
 - vai trò từng nguồn mới (a_roll có lời nói / b_roll chỉ có hình), ý hook nếu có
 
@@ -59,6 +61,7 @@ vf analyze lo-NN
 Đọc kết quả in ra: nguồn nào không có tiếng thì đổi vai trò thành `b_roll`.
 Lệnh cũng ghi `work/<nguồn>/scenes.json` (điểm chuyển cảnh). Nguồn thường là clip KOL **đã dựng sẵn** (nhiều cảnh ngắn, sticker) — xem ảnh ghép khung hình trước khi viết edl để biết nội dung thật, có thể khác brief (ví dụ lo-01 là clip quà 20/10): khi đó bám nội dung thật, giữ lợi ích sản phẩm bằng chữ, và báo người dùng.
 **Nguồn đã có chữ in sẵn trên hình** (phụ đề nhấn, tiêu đề, sticker chữ) → thêm tên file vào `text_sources` trong brief. Sau đó xem khung hình từng giây của các đoạn định dùng và ghi khoảng không có chữ in sẵn vào `text_free`: chỉ ở đó mới thêm thẻ chữ theo style guide (người dùng chọn 2026-10-14). Ngoài các khoảng đó render tự bỏ chữ (kể cả cam kết tự động); hiệu ứng hình giữ nhưng bỏ nhãn. Nguồn đã có cảnh before/after thật (bảng so màu) thì dùng cảnh thật, không thêm icon răng minh hoạ. (Yêu cầu người dùng 2026-10-14.)
+**Vùng an toàn chỉ áp dụng cho phần Claude thêm vào** (chữ, thẻ, graphic, SFX, phụ đề). Không thay đổi gì có sẵn trong source gốc: chữ in sẵn, sticker, phụ đề KOL nằm ở đâu thì để nguyên, và không chọn hay bỏ đoạn vì vị trí chữ in sẵn (người dùng chốt 2026-10-14).
 
 ## 4. Viết kịch bản dựng
 
@@ -69,6 +72,9 @@ Lệnh cũng ghi `work/<nguồn>/scenes.json` (điểm chuyển cảnh). Nguồn
 ```
 vf render lo-NN
 ```
+- `vf doctor` báo "chưa có SFX" → video sẽ thiếu âm thanh dựng: báo người dùng một dòng (cần bộ SFX có giấy phép trong `library/brand/sfx/`), vẫn render.
+- **Vùng an toàn** (chỉ phần Claude thêm vào): mọi dòng `vùng an toàn: …` trong `qa.json` là lỗi phải sửa trước khi báo xong (chữ/hình bị giao diện TikTok che). Viền đỏ trên `*_sheet.png` = vùng an toàn.
+- Dòng `~ …` khi render là gợi ý sáng tạo (hook, CTA, tốc độ đọc, âm thanh, hook trùng): sửa nếu được, không thì nêu lý do ở bước 6.
 - Có giới hạn thời lượng từ người dùng thì mọi biến thể phải ngắn hơn giới hạn đó; vượt thì cắt bớt đoạn trong edl và render lại.
 - Xem từng `*_sheet.png` và `qa.json`. Biến thể lỗi thì sửa edl rồi chạy `vf render lo-NN --only <id>`.
 - Dòng `· đoạn N: mẩu cảnh …` khi render: pipeline đã tự giữ khung hình kề bên cho mẩu cảnh < 0.5 s; nhiều dòng như vậy thì dời mép đoạn trong edl về đúng điểm chuyển cảnh cho gọn.
@@ -78,8 +84,9 @@ vf render lo-NN
 ## 6. Báo người dùng
 
 - Đường dẫn `EDIT/out/lo-NN/`.
-- Mỗi biến thể một dòng: `id — kiểu hook — câu hook — thời lượng — ý tưởng`.
-- Nhắc chấm `score` (1–5) + `notes` trong `review.csv`. Lần sau có source mới, skill này tự chạy `video-learnings` trước (bước 1).
+- Mỗi biến thể một dòng: `id — kiểu hook — preset — câu hook — thời lượng — ý tưởng`.
+- Gợi ý sáng tạo còn để lại (nếu có) và lý do.
+- Nhắc chấm `score` (1–5) + `notes` trong `review.csv`, và sau khi đăng thì điền `views`, `retention_3s` (% còn xem ở giây 3, lấy trong TikTok Analytics/Ads Manager) — vòng học cần số liệu thật, không chỉ điểm cảm tính. Lần sau có source mới, skill này tự chạy `video-learnings` trước (bước 1).
 
 ## Lỗi thường gặp
 
@@ -94,4 +101,6 @@ vf render lo-NN
 | Chữ lỗi dấu tiếng Việt | Thiếu font trong `library/brand/` (mặc định `Montserrat-ExtraBold.ttf`, giấy phép OFL) |
 | Phiên âm rỗng | Lần trước chạy `--no-transcribe`; chạy lại `vf analyze lo-NN` (tự phiên âm lại) |
 | Video mẫu ở `EDIT/video mẫu tham khảo/` (không phải `video tham khảo`) | Thư mục mẫu người dùng đặt; chỉ học kỹ thuật, không lấy hình/nhạc/giọng |
+| `vùng an toàn: chữ/hình lấn vùng …` | Rút ngắn chữ, bỏ `y` ghi tay, hoặc dời graphic; hạt sáng/vầng sáng mờ không bị tính. Số liệu vùng an toàn ở `vf/safezone.py` (một nguồn duy nhất) |
+| Video không có tiếng SFX | Chưa có file trong `library/brand/sfx/` (tên: whoosh, marker, paper, tick, swipe, shimmer, pop) hoặc edl đặt `"sfx_auto": false` |
 | Chưa có `library/style-guide.md` đã duyệt | Vẫn dựng được, báo người dùng; muốn học phong cách thì chạy skill `video-style-learning` |

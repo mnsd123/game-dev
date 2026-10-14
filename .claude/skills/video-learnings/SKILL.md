@@ -25,6 +25,8 @@ Sau đó đọc trực tiếp từng `review.csv` để xem cột `notes`, `hook
 - Mỗi bài học một dòng: `YYYY-MM-DD — bài học — bằng chứng (lô/id, điểm, notes hoặc retention)`.
 - Chỉ ghi điều có bằng chứng trong review.csv. Không suy diễn từ một biến thể đơn lẻ trừ khi notes của người dùng nói thẳng.
 - Retention 3 s (khi có) quan trọng hơn điểm cảm tính khi hai thứ mâu thuẫn; ghi rõ mâu thuẫn đó.
+- Mốc tham khảo (blog ngành 2026, chỉ là định hướng): retention 3 s ≥ 55 % là hook mạnh, < 40 % là phải làm lại hook. Ưu tiên so các biến thể với nhau trong cùng tài khoản hơn là so với mốc này.
+- Ghi bài học theo `preset` (cột trong edl) bên cạnh kiểu hook, để biết phong cách dựng nào thắng.
 - **Không xoá bài học cũ**, trừ khi dữ liệu mới bác bỏ nó. Khi đó gạch ngang dòng cũ (`~~…~~`) và thêm dòng mới nêu bằng chứng bác bỏ.
 - Không ghi bài học nào khuyến khích dùng cụm trong `forbidden.txt` hoặc `claims_pending.txt`, dù biến thể đó điểm cao.
 

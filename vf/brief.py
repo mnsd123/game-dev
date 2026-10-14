@@ -14,6 +14,8 @@ class Brief(BaseModel):
     platform: Literal["tiktok", "reels", "shorts"]
     aspect: Literal["9:16", "1:1", "16:9"] = "9:16"
     target_seconds: int = Field(gt=0)
+    # bản cắt ngắn (giây) cho biến thể có `cutdown_of` trong edl; None = không làm bản ngắn
+    cutdown_seconds: int | None = Field(default=None, gt=0)
     variants: int = Field(default=3, ge=1, le=20)
     goal: Literal["awareness", "education", "conversion"]
     message: str
