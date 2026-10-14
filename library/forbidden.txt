@@ -1,0 +1,12 @@
+# KHÔNG CÒN DÙNG ĐỂ CHẶN (người dùng chốt 2026-10-14: không chặn claim, không cảnh báo). Giữ làm tham khảo.
+# Muốn chặn cụm nào cho một lô: ghi vào `forbidden` trong jobs/<lô>/brief.yaml.
+điều trị
+chữa
+loại bỏ vi khuẩn
+tái tạo men răng
+thay thế nha sĩ
+100% an toàn
+không bao giờ ê buốt
+thần kỳ
+đảm bảo
+cấp tốc

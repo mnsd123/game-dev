@@ -1,0 +1,154 @@
+{
+  "_doc": "EDL v2 (vf/edl.py). Mỗi biến thể 1 preset (library/brand/tokens.json); mỗi đoạn ghi chapter; protect cho cảnh tiền. Thời gian overlays/graphics/effects theo timeline output (giây).",
+  "job": "lo-mau",
+  "variants": [
+    {
+      "id": "v1-noi-dau",
+      "hook_type": "pain",
+      "preset": "pink",
+      "hook": {
+        "source": "nguon_a.mp4",
+        "start": 1.0,
+        "end": 2.5
+      },
+      "segments": [
+        {
+          "source": "nguon_b.mp4",
+          "start": 0.0,
+          "end": 2.0,
+          "chapter": "pain"
+        },
+        {
+          "source": "nguon_a.mp4",
+          "start": 4.0,
+          "end": 4.9,
+          "chapter": "proof"
+        }
+      ],
+      "overlays": [
+        {
+          "text": "Cười mà phải che miệng?",
+          "start": 0.0,
+          "end": 1.5,
+          "position": "top",
+          "style": "hook",
+          "animation": "word_by_word"
+        },
+        {
+          "text": "Bấm giỏ hàng",
+          "start": 3.6,
+          "end": 4.4,
+          "position": "bottom",
+          "style": "cta",
+          "animation": "slide"
+        }
+      ],
+      "graphics": [
+        {
+          "kind": "light",
+          "color": "blue",
+          "label": "Đèn xanh · 10 phút",
+          "start": 2.0,
+          "end": 3.0
+        },
+        {
+          "kind": "whiten",
+          "start": 3.0,
+          "end": 4.4
+        }
+      ],
+      "effects": [
+        {
+          "kind": "zoom_punch",
+          "at": 0.0,
+          "duration": 0.3
+        }
+      ],
+      "captions": false,
+      "rationale": "Mở bằng nỗi đau cảm xúc (mục 3 hồ sơ sản phẩm), b-roll minh hoạ, kết bằng CTA."
+    },
+    {
+      "id": "v2-cau-hoi",
+      "hook_type": "question",
+      "preset": "vox",
+      "hook": {
+        "source": "nguon_b.mp4",
+        "start": 0.0,
+        "end": 1.5
+      },
+      "segments": [
+        {
+          "source": "nguon_a.mp4",
+          "start": 1.0,
+          "end": 3.0,
+          "chapter": "benefit"
+        },
+        {
+          "source": "nguon_b.mp4",
+          "start": 2.0,
+          "end": 2.9,
+          "chapter": "cta"
+        }
+      ],
+      "overlays": [
+        {
+          "text": "15 phút tại nhà có đủ không?",
+          "start": 0.0,
+          "end": 1.5,
+          "position": "center",
+          "style": "hook",
+          "animation": "pop"
+        }
+      ],
+      "effects": [
+        {
+          "kind": "flash",
+          "at": 1.5,
+          "duration": 0.15
+        }
+      ],
+      "captions": false,
+      "rationale": "Câu hỏi về thời gian, trả lời bằng lời người nói."
+    },
+    {
+      "id": "v3-chi-phi",
+      "hook_type": "cost_compare",
+      "preset": "ugc",
+      "hook": {
+        "source": "nguon_a.mp4",
+        "start": 4.0,
+        "end": 5.0
+      },
+      "segments": [
+        {
+          "source": "nguon_a.mp4",
+          "start": 1.0,
+          "end": 3.0,
+          "chapter": "saving"
+        },
+        {
+          "source": "nguon_b.mp4",
+          "start": 0.5,
+          "end": 2.5,
+          "chapter": "cta"
+        }
+      ],
+      "overlays": [
+        {
+          "text": "Nha khoa ~8 triệu, tại nhà ~800k",
+          "start": 0.0,
+          "end": 1.0,
+          "position": "top",
+          "style": "hook",
+          "animation": "highlight",
+          "emphasis": [
+            "~800k"
+          ]
+        }
+      ],
+      "effects": [],
+      "captions": false,
+      "rationale": "So sánh chi phí, không dìm nha khoa."
+    }
+  ]
+}

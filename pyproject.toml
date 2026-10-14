@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "video-factory"
+version = "0.1.0"
+description = "Pipeline edit video hàng loạt cho Smilee (ffmpeg + faster-whisper)"
+requires-python = ">=3.11"
+dependencies = [
+    "faster-whisper>=1.0",
+    "pydantic>=2",
+    "typer>=0.12",
+    "pyyaml>=6",
+    "python-docx>=1.1",
+    "opencv-python-headless>=4.8,<5",  # 5.x bỏ file Haar cascade (vf/placement.py cần)
+    "nvidia-cublas-cu12; sys_platform == 'win32'",  # faster-whisper chạy GPU trên Windows
+    "nvidia-cudnn-cu12>=9,<10; sys_platform == 'win32'",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+
+[project.scripts]
+vf = "vf.cli:app"
+
+[tool.setuptools]
+packages = ["vf"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-m 'not slow'"
+markers = ["slow: chạy model thật (faster-whisper), bỏ qua bằng -m 'not slow'"]
