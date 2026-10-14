@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Callable
 
 from vf.probe import MediaInfo, normalize, probe
+from vf.scenes import detect_cuts
 from vf.silence import detect_silences, keep_ranges
 from vf.transcribe import Word, transcribe
 
@@ -33,7 +34,7 @@ def source_work_dir(work_dir: Path, source_name: str) -> Path:
 def analyze_source(
     src: Path, work_dir: Path, transcriber: Callable[[Path], list[Word]] | None = transcribe
 ) -> MediaInfo:
-    """Ghi work/<tên-nguồn>/{normalized.mp4, transcript.json, silences.json, keep.json}.
+    """Ghi work/<tên-nguồn>/{normalized.mp4, transcript.json, scenes.json, silences.json, keep.json}.
     Bỏ qua bước đã có kết quả mới hơn file nguồn (chạy lại nhanh).
     transcriber=None: bỏ phiên âm (ghi transcript rỗng kèm dấu 'transcript.skipped' để lần sau phiên âm lại)."""
     d = source_work_dir(work_dir, src.name)
@@ -56,6 +57,9 @@ def analyze_source(
     elif not _fresh(tr, norm) or skipped.exists():
         _write_json(tr, [asdict(w) for w in transcriber(norm)])
         skipped.unlink(missing_ok=True)
+    scenes = d / "scenes.json"
+    if not _fresh(scenes, norm):
+        _write_json(scenes, detect_cuts(norm))
     silences = detect_silences(norm)
     _write_json(d / "silences.json", [asdict(r) for r in silences])
     _write_json(d / "keep.json", [asdict(r) for r in keep_ranges(info.duration, silences)])
@@ -68,6 +72,11 @@ def analyze_all(
 ) -> dict[str, MediaInfo]:
     """Khoá = tên file nguồn (kèm đuôi), đúng như `Segment.source` và `brief.source_roles`."""
     return {src.name: analyze_source(src, work_dir, transcriber) for src in list_videos(sources_dir)}
+
+
+def load_cuts(work_dir: Path, source_name: str) -> list[float]:
+    p = source_work_dir(work_dir, source_name) / "scenes.json"
+    return json.loads(p.read_text(encoding="utf-8")) if p.exists() else []
 
 
 def load_words(work_dir: Path, source_name: str) -> list[Word]:

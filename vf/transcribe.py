@@ -18,8 +18,23 @@ class Word:
     end: float
 
 
+def _add_cuda_dlls() -> None:
+    """Windows: cho ctranslate2 thấy cuBLAS/cuDNN cài bằng pip (nvidia-*-cu12)."""
+    if os.name != "nt":
+        return
+    try:
+        import nvidia
+    except ImportError:
+        return
+    for base in nvidia.__path__:
+        for bin_dir in Path(base).glob("*/bin"):
+            os.add_dll_directory(str(bin_dir))
+            os.environ["PATH"] = str(bin_dir) + os.pathsep + os.environ.get("PATH", "")
+
+
 @lru_cache(maxsize=2)
 def _model(name: str):
+    _add_cuda_dlls()
     from faster_whisper import WhisperModel
 
     return WhisperModel(name, device="auto", compute_type="auto")

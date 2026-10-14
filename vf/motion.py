@@ -147,6 +147,7 @@ def render_overlay(
     props = {
         "durationInFrames": max(1, round(output_duration(v) * 30)),
         "overlays": [o.model_dump() for o in ovs],
+        "graphics": [g.model_dump() for g in v.graphics],
         **_brand_props(brand),
     }
     props_path = Path(props_path) if props_path else out.with_suffix(".json")

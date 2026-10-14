@@ -39,6 +39,20 @@
           "animation": "slide"
         }
       ],
+      "graphics": [
+        {
+          "kind": "light",
+          "color": "blue",
+          "label": "Đèn xanh · 10 phút",
+          "start": 2.0,
+          "end": 3.0
+        },
+        {
+          "kind": "whiten",
+          "start": 3.0,
+          "end": 4.4
+        }
+      ],
       "effects": [
         {
           "kind": "zoom_punch",

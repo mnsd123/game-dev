@@ -15,6 +15,7 @@ from vf.paths import BRAND_DIR, CAPTION_STYLE, LIBRARY
 from vf.probe import MediaInfo
 from vf.brief import FORBIDDEN_PATH, PENDING_PATH, read_phrase_list
 from vf.qa import ClaimViolation, check_claims, measure_lufs
+from vf.scenes import PieceVideo, plan_piece_video
 from vf.transcribe import Word
 
 W, H, FPS = 1080, 1920, 30
@@ -146,8 +147,10 @@ def build_ffmpeg_cmd(
     text_dir: Path | None = None,
     speech: set[str] | None = None,
     overlay: Path | None = None,
+    videos: list[PieceVideo] | None = None,
 ) -> list[str]:
-    """`overlay`: video chữ động nền trong suốt (Remotion) chồng lên hình; khi có thì không vẽ drawtext."""
+    """`overlay`: video chữ động nền trong suốt (Remotion) chồng lên hình; khi có thì không vẽ drawtext.
+    `videos`: cách lấy hình từng đoạn (vf.scenes.plan_piece_video); None = lấy nguyên."""
     pieces = v.pieces()
     if gains is None:
         gains = source_gains(sources, infos, {p.source for p in pieces}, speech)
@@ -158,10 +161,21 @@ def build_ffmpeg_cmd(
         cmd += ["-ss", f"{p.start:.3f}", "-t", f"{p.duration:.3f}", "-i", str(sources[p.source])]
     fc: list[str] = []
     n = len(pieces)
-    for i, p in enumerate(pieces):
+    videos = videos or [PieceVideo() for _ in pieces]
+    for i, (p, pv) in enumerate(zip(pieces, videos)):
         info = infos[p.source]
         fc += _fit(f"[{i}:v]setpts=PTS-STARTPTS,fps={FPS},", f"[vf{i}]", info, i)
-        fc.append(f"[vf{i}]trim=duration={p.duration:.3f},format=yuv420p[v{i}]")
+        chain = []
+        if pv.head or pv.tail:
+            # mẩu cảnh vài khung hình ở mép: bỏ, giữ khung hình kề bên cho đủ thời lượng (tiếng không đổi)
+            chain.append(f"trim=start={pv.head:.3f}:end={p.duration - pv.tail:.3f},setpts=PTS-STARTPTS,"
+                         f"tpad=start_mode=clone:start_duration={pv.head:.3f}"
+                         f":stop_mode=clone:stop_duration={pv.tail + 0.1:.3f}")
+        if pv.zoom != 1.0:
+            zw, zh = 2 * round(W * pv.zoom / 2), 2 * round(H * pv.zoom / 2)
+            chain.append(f"scale={zw}:{zh},crop={W}:{H}")
+        chain.append(f"trim=duration={p.duration:.3f},format=yuv420p")
+        fc.append(f"[vf{i}]" + ",".join(chain) + f"[v{i}]")
         fade_in = JOIN_FADE_S if i > 0 and pieces[i - 1].source != p.source else DECLICK_S
         fade_out = JOIN_FADE_S if i < n - 1 and pieces[i + 1].source != p.source else DECLICK_S
         src = (f"[{i}:a]asetpts=PTS-STARTPTS," if info.has_audio else "anullsrc=r=48000:cl=stereo,")
@@ -222,6 +236,18 @@ def build_ffmpeg_cmd(
     return cmd
 
 
+def _placed(v: Variant, videos: list[PieceVideo], sources: dict[str, Path]) -> Variant:
+    """Đặt chữ/hiệu ứng vào chỗ không che mặt; thiếu OpenCV thì giữ vị trí khai trong edl."""
+    try:
+        import cv2  # noqa: F401
+    except ImportError:
+        return v
+    from vf.placement import place
+
+    overlays, graphics = place(v.pieces(), videos, sources, v.overlays, v.graphics)
+    return v.model_copy(update={"overlays": overlays, "graphics": graphics})
+
+
 def render_variant(
     sources: dict[str, Path],
     infos: dict[str, MediaInfo],
@@ -234,6 +260,7 @@ def render_variant(
     work_dir: Path | None = None,
     forbidden: list[str] | None = None,
     motion: bool | None = None,
+    cuts_by_source: dict[str, list[float]] | None = None,
 ) -> Path:
     """Kiểm tra claim trên mọi overlay + phụ đề TRƯỚC khi render; vi phạm → ClaimViolation, không tạo file.
     Overlay = chữ trong edl + cam kết tự phát hiện trong lời nói (library/commitments.txt).
@@ -244,7 +271,8 @@ def render_variant(
         forbidden = read_phrase_list(FORBIDDEN_PATH) + read_phrase_list(PENDING_PATH)
     v = v.model_copy(update={"overlays": plan_overlays(v, words_by_source or {})})
     words = remap_words(words_by_source or {}, v.pieces()) if v.captions else []
-    texts = [o.text for o in v.overlays] + ([" ".join(w.text for w in words)] if words else [])
+    texts = ([o.text for o in v.overlays] + [g.label for g in v.graphics if g.label]
+             + ([" ".join(w.text for w in words)] if words else []))
     hits = check_claims(texts, forbidden)
     if hits:
         raise ClaimViolation(f"biến thể '{v.id}': chữ trên màn hình chứa cụm cấm/chưa có bằng chứng: {hits}")
@@ -260,12 +288,14 @@ def render_variant(
     tmp_out = out.with_name(out.stem + ".partial" + out.suffix)
     spoken = {name for name, ws in (words_by_source or {}).items() if ws}
     speech = spoken or None  # chưa có transcript nào → không đoán, coi mọi nguồn là có lời nói
+    videos = plan_piece_video(v.pieces(), cuts_by_source or {})
     overlay_path = None
-    if v.overlays and (remotion_available() if motion is None else motion):
+    if (v.overlays or v.graphics) and (remotion_available() if motion is None else motion):
+        v = _placed(v, videos, sources)
         overlay_path = render_overlay(v, DEFAULT_STYLE_GUIDE, work / f"{v.id}_overlay.mov", brand=brand,
                                       props_path=work / f"{v.id}_overlay.json")
     cmd = build_ffmpeg_cmd(sources, infos, v, ass_path, brand, tmp_out, text_dir=work / f"{v.id}_text",
-                           speech=speech, overlay=overlay_path)
+                           speech=speech, overlay=overlay_path, videos=videos)
     try:
         run(cmd)
     except Exception:

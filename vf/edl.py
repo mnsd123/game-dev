@@ -34,6 +34,18 @@ class TextOverlay(BaseModel):
     style: Literal["hook", "commit", "label", "cta", "plain"] = "hook"
     animation: Animation = "pop"
     emphasis: list[str] = []  # từ được tô vệt highlight; rỗng + animation=highlight → tô cả câu
+    y: float | None = None  # mép trên (0–1 chiều cao khung); None = theo position. Render tự chọn chỗ không che mặt
+
+
+class Graphic(BaseModel):
+    """Hiệu ứng minh hoạ vẽ bằng Remotion.
+    light: vầng sáng màu + đồng hồ đếm phút (đèn xanh/đỏ). whiten: icon răng vàng → trắng, ghi "Hình minh họa"."""
+    kind: Literal["light", "whiten"]
+    start: float  # theo timeline output
+    end: float
+    color: Literal["blue", "red"] = "blue"
+    label: str = ""
+    y: float | None = None  # mép trên thẻ; None = render tự chọn
 
 
 class Effect(BaseModel):
@@ -49,6 +61,7 @@ class Variant(BaseModel):
     hook: Segment
     segments: list[Segment]
     overlays: list[TextOverlay] = []
+    graphics: list[Graphic] = []
     effects: list[Effect] = []
     captions: bool = False  # mặc định KHÔNG phụ đề toàn bộ lời; chỉ chữ động ở đoạn quan trọng
     music: str | None = None
@@ -68,6 +81,9 @@ class Variant(BaseModel):
         for i, o in enumerate(self.overlays):
             if o.start < 0 or o.start >= o.end:
                 raise ValueError(f"biến thể '{self.id}', overlays[{i}]: start phải < end")
+        for i, g in enumerate(self.graphics):
+            if g.start < 0 or g.start >= g.end:
+                raise ValueError(f"biến thể '{self.id}', graphics[{i}]: start phải < end")
         return self
 
     def labeled_pieces(self) -> list[tuple[str, Segment]]:

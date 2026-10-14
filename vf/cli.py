@@ -12,11 +12,12 @@ from pathlib import Path
 
 import typer
 
-from vf.analyze import analyze_all, list_videos, load_words, source_work_dir
+from vf.analyze import analyze_all, list_videos, load_cuts, load_words, source_work_dir
 from vf.brief import load_brief, read_phrase_list
 from vf.config import load_config
 from vf.learn import stats_markdown, summarize_reviews
 from vf.edl import Variant, load_edl, output_duration
+from vf.scenes import micro_shots
 from vf.paths import BRAND_DIR, BRIEF_TEMPLATE, CAPTION_STYLE, FORBIDDEN_PATH, PENDING_PATH
 from vf.probe import MediaInfo
 from vf.qa import ClaimViolation, check_output, contact_sheet
@@ -205,6 +206,7 @@ def render(
         raise typer.BadParameter(f"Chưa có kết quả phân tích trong {work_dir}. Chạy: vf analyze {lo}")
     edl = load_edl(job / "edl.json", infos)
     words = {name: load_words(work_dir, name) for name in infos}
+    cuts = {name: load_cuts(work_dir, name) for name in infos}
     out_dir = cfg.out_dir / lo
     out_dir.mkdir(parents=True, exist_ok=True)
 
@@ -220,7 +222,7 @@ def render(
         try:
             render_variant(sources, infos, v, out, words_by_source=words, brand=BRAND_DIR,
                            style_path=CAPTION_STYLE, work_dir=work_dir / "_render" / lo, forbidden=forbidden,
-                           motion=False if static_text else None)
+                           motion=False if static_text else None, cuts_by_source=cuts)
         except ClaimViolation as e:
             out.unlink(missing_ok=True)
             failures.append(str(e))
@@ -233,6 +235,8 @@ def render(
             qa_by_id.pop(v.id, None)
             continue
         report = check_output(out, output_duration(v))
+        for note in micro_shots(v.pieces(), cuts):  # đã xử lý khi render; in ra để biết mà chỉnh edl cho gọn
+            typer.echo(f"   · {note}")
         if target and abs(output_duration(v) - target) > 0.1 * target:
             report.notes.append(f"Tổng {output_duration(v):.1f} s lệch quá 10% so với brief ({target} s)")
         contact_sheet(out, out_dir / f"{v.id}_sheet.png")

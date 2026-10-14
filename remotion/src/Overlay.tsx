@@ -13,9 +13,12 @@ import {
   useCurrentFrame,
   useVideoConfig,
 } from "remotion";
-import { Colors, DEFAULT_COLORS, OverlayItem, OverlayProps } from "./types";
+import { LightFx, WhitenFx } from "./Graphics";
+import { Colors, DEFAULT_COLORS, FONT_STACK, OverlayItem, OverlayProps } from "./types";
 
-const FONT_STACK = '"BrandFont", "Be Vietnam Pro", Arial, "DejaVu Sans", sans-serif';
+// khớp FONT_PX / PAD_PX trong vf/placement.py (Python ước lượng chiều cao để chọn chỗ đặt)
+const FONT_PX: Record<OverlayItem["style"], number> = { hook: 80, commit: 72, label: 54, cta: 58, plain: 60 };
+const PAD_PX: Record<OverlayItem["style"], number> = { hook: 18, commit: 22, label: 16, cta: 20, plain: 14 };
 const EXIT_FRAMES = 6;
 
 const TOP: Record<OverlayItem["position"], string> = { top: "12%", center: "42%", bottom: "70%" };
@@ -64,13 +67,14 @@ const Item: React.FC<{ item: OverlayItem; colors: Colors }> = ({ item, colors })
   });
 
   const isCard = item.style === "commit" || item.style === "label" || item.style === "cta";
-  const bg = item.style === "commit" ? colors.card : colors.accent;
+  // chữ hook/plain: viền đen + nền tối mờ để đọc được trên mọi nền
+  const bg = item.style === "commit" ? colors.card : isCard ? colors.accent : "rgba(0, 0, 0, 0.5)";
   const fg = isCard ? (item.style === "commit" ? colors.cardText : colors.accentText) : colors.text;
-  const fontSize = item.style === "commit" ? 84 : item.style === "hook" ? 88 : item.style === "plain" ? 64 : 60;
+  const fontSize = FONT_PX[item.style];
 
   const textStyle: React.CSSProperties = isCard
     ? { color: fg }
-    : { color: fg, WebkitTextStroke: `14px ${colors.stroke}`, paintOrder: "stroke fill" };
+    : { color: fg, WebkitTextStroke: `9px ${colors.stroke}`, paintOrder: "stroke fill" };
 
   // vệt highlight quét qua chữ sau khi chữ đã hiện
   const markerProgress = interpolate(frame, [0.25 * fps, 0.7 * fps], [0, 1], {
@@ -127,7 +131,7 @@ const Item: React.FC<{ item: OverlayItem; colors: Colors }> = ({ item, colors })
       <div
         style={{
           position: "absolute",
-          top: TOP[item.position],
+          top: item.y != null ? `${item.y * 100}%` : TOP[item.position],
           maxWidth: 1000,
           textAlign: "center",
           textWrap: "balance",
@@ -139,10 +143,11 @@ const Item: React.FC<{ item: OverlayItem; colors: Colors }> = ({ item, colors })
           scale: scale * pulse,
           translate: `${slideX}px 0px`,
           rotate: `${wiggle}deg`,
-          padding: isCard ? "22px 40px" : 0,
-          borderRadius: isCard ? 28 : 0,
-          backgroundColor: isCard ? bg : "transparent",
+          padding: `${PAD_PX[item.style]}px 36px`,
+          borderRadius: 28,
+          backgroundColor: bg,
           boxShadow: isCard ? "0 18px 40px rgba(0,0,0,0.35)" : "none",
+          letterSpacing: "-0.01em",
           ...textStyle,
         }}
       >
@@ -152,7 +157,7 @@ const Item: React.FC<{ item: OverlayItem; colors: Colors }> = ({ item, colors })
   );
 };
 
-export const Overlay: React.FC<OverlayProps> = ({ overlays, fontFile, colors }) => {
+export const Overlay: React.FC<OverlayProps> = ({ overlays, graphics, fontFile, colors }) => {
   const { fps } = useVideoConfig();
   const [handle] = useState(() => (fontFile ? delayRender("Tải font brand") : null));
   useEffect(() => {
@@ -165,6 +170,15 @@ export const Overlay: React.FC<OverlayProps> = ({ overlays, fontFile, colors }) 
   const c: Colors = { ...DEFAULT_COLORS, ...(colors ?? {}) };
   return (
     <AbsoluteFill style={{ backgroundColor: "transparent" }}>
+      {(graphics ?? []).map((g, i) => {
+        const from = Math.round(g.start * fps);
+        const dur = Math.max(1, Math.round(g.end * fps) - from);
+        return (
+          <Sequence key={`g${i}`} from={from} durationInFrames={dur} name={`${g.kind} ${g.label}`}>
+            {g.kind === "light" ? <LightFx item={g} /> : <WhitenFx item={g} />}
+          </Sequence>
+        );
+      })}
       {overlays.map((o, i) => {
         const from = Math.round(o.start * fps);
         const dur = Math.max(1, Math.round(o.end * fps) - from);
