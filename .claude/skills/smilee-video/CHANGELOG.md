@@ -1,5 +1,9 @@
 # Lịch sử skill smilee-video
 
+## v1.3.1 — 2026-10-14 (lo-02 v7–v9: 3đ)
+
+- Vox giữ nguyên. Người dùng nhắc: **không bỏ** motion graphic răng vàng → trắng khi đèn xanh/đỏ, vầng sáng, thẻ đếm ngày — dùng tiếp khi hợp bối cảnh (style guide mục 10, video-batch-edit).
+
 ## v1.3 — 2026-10-14 (feedback lo-02 v4–v6: 2.5đ)
 
 | Feedback | Thay đổi |
